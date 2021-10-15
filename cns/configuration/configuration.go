@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
-	"github.com/Azure/azure-container-networking/cns/logger"
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/pkg/errors"
 )
@@ -87,9 +86,6 @@ func ReadConfig() (*CNSConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Printf("[Configuration] Config path:%s", configpath)
-
 	return readConfigFromFile(configpath)
 }
 

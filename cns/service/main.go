@@ -44,7 +44,12 @@ import (
 	"github.com/Azure/azure-container-networking/platform"
 	localtls "github.com/Azure/azure-container-networking/server/tls"
 	"github.com/Azure/azure-container-networking/store"
+	"github.com/Azure/azure-container-networking/zapai"
+	zaplogfmt "github.com/jsternberg/zap-logfmt"
+	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -462,6 +467,54 @@ func main() {
 
 		logger.InitAI(aiConfig, ts.DisableTrace, ts.DisableMetric, ts.DisableEvent)
 	}
+
+	// compose zap logger
+	zcore := zapcore.NewCore(zaplogfmt.NewEncoder(zap.NewProductionEncoderConfig()), os.Stdout, zapcore.DebugLevel)
+	z := zap.New(zcore)
+	if !disableTelemetry {
+		sinkcfg := &zapai.SinkConfig{
+			GracePeriod:            5 * time.Second, //nolint:gomnd // defaults
+			TelemetryConfiguration: *appinsights.NewTelemetryConfiguration(logger.GetAIMetadata()),
+		}
+		sinkcfg.InstrumentationKey = logger.GetAIMetadata()
+		sinkcfg.MaxBatchSize = cnsconfig.TelemetrySettings.TelemetryBatchSizeBytes
+		sinkcfg.MaxBatchInterval = time.Duration(cnsconfig.TelemetrySettings.TelemetryBatchIntervalInSecs) * time.Second
+		aisink, aiclose, err := zap.Open(sinkcfg.URI()) //nolint:govet // intentional shadow
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer aiclose()
+		aicore := zapai.NewCore(zapcore.DebugLevel, aisink)
+		aicore = aicore.WithFieldMappers(zapai.DefaultMappers)
+		zaicore := zapcore.NewTee(zcore, aicore)
+		z = zap.New(zaicore)
+	}
+	metadata, err := acn.RequestMetadata(context.TODO())
+	if err != nil {
+		z.Error("failed to fetch metadata", zap.Error(err))
+	}
+	z = z.With(
+		zap.String("user_id", runtime.GOOS),
+		zap.String("operation_id", ""),
+		zap.String("parent_id", version),
+		zap.String("version", version),
+		zap.String("account", metadata.SubscriptionID),
+		zap.String("anonymous_user_id", metadata.VMName),
+		zap.String("session_id", metadata.VMID),
+		zap.String("AppName", name),
+		zap.String("Region", metadata.Location),
+		zap.String("ResourceGroup", metadata.ResourceGroupName),
+		zap.String("VMSize", metadata.VMSize),
+		zap.String("OSVersion", metadata.OSVersion),
+		zap.String("VMID", metadata.VMID),
+	)
+	go func() {
+		for {
+			z.Info("hello zap")
+			time.Sleep(1 * time.Minute)
+		}
+	}()
 
 	// Log platform information.
 	logger.Printf("Running on %v", platform.GetOSInfo())

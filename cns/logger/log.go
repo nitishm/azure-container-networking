@@ -19,6 +19,10 @@ var (
 	aiMetadata string
 )
 
+func GetAIMetadata() string {
+	return aiMetadata
+}
+
 type CNSLogger struct {
 	logger               *log.Logger
 	th                   aitelemetry.TelemetryHandle

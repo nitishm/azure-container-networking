@@ -4,10 +4,13 @@
 package common
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -167,19 +170,10 @@ func StartProcess(path string, args []string) error {
 	return err
 }
 
-// GetHostMetadata - retrieve VM metadata from wireserver
-func GetHostMetadata(fileName string) (Metadata, error) {
-	content, err := ioutil.ReadFile(fileName)
-	if err == nil {
-		var metadata Metadata
-		if err = json.Unmarshal(content, &metadata); err == nil {
-			return metadata, nil
-		}
-	}
-
+func RequestMetadata(ctx context.Context) (Metadata, error) {
 	log.Printf("[Telemetry] Request metadata from wireserver")
 
-	req, err := http.NewRequest("GET", metadataURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", metadataURL, nil)
 	if err != nil {
 		return Metadata{}, err
 	}
@@ -199,23 +193,31 @@ func GetHostMetadata(fileName string) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, err
 	}
-
 	defer resp.Body.Close()
-
-	metareport := metadataWrapper{}
-
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("[Telemetry] Request failed with HTTP error %d", resp.StatusCode)
-	} else if resp.Body != nil {
-		err = json.NewDecoder(resp.Body).Decode(&metareport)
-		if err != nil {
-			err = fmt.Errorf("[Telemetry] Unable to decode response body due to error: %s", err.Error())
-		}
-	} else {
-		err = fmt.Errorf("[Telemetry] Response body is empty")
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Metadata{}, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		return Metadata{}, fmt.Errorf("[Telemetry] Request failed with HTTP error %d", resp.StatusCode)
+	}
+	metareport := metadataWrapper{}
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&metareport); err != nil {
+		return Metadata{}, err
+	}
+	return metareport.Metadata, nil
+}
 
-	return metareport.Metadata, err
+// GetHostMetadata - retrieve VM metadata from wireserver
+func GetHostMetadata(fileName string) (Metadata, error) {
+	content, err := ioutil.ReadFile(fileName)
+	if err == nil {
+		var metadata Metadata
+		if err = json.Unmarshal(content, &metadata); err == nil {
+			return metadata, nil
+		}
+	}
+	return RequestMetadata(context.TODO())
 }
 
 // SaveHostMetadata - save metadata got from wireserver to json file
