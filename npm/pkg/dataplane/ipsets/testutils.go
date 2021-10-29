@@ -1,6 +1,10 @@
 package ipsets
 
-import "github.com/Azure/azure-container-networking/npm/util"
+import (
+	"github.com/Azure/azure-container-networking/network/hnswrapper"
+	"github.com/Azure/azure-container-networking/npm/util"
+	"github.com/Microsoft/hcsshim/hcn"
+)
 
 type TestSet struct {
 	Metadata   *IPSetMetadata
@@ -18,6 +22,18 @@ func CreateTestSet(name string, setType SetType) *TestSet {
 	set.PrefixName = set.Metadata.GetPrefixName()
 	set.HashedName = util.GetHashedName(set.PrefixName)
 	return set
+}
+
+func GetHNSFake() *hnswrapper.Hnsv2wrapperFake {
+	hns := hnswrapper.NewHnsv2wrapperFake()
+	network := &hcn.HostComputeNetwork{
+		Id:   "1234",
+		Name: "azure",
+	}
+
+	hns.CreateNetwork(network)
+
+	return hns
 }
 
 var (

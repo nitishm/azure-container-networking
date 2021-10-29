@@ -8,6 +8,17 @@ import (
 	"k8s.io/klog"
 )
 
+// PolicyManagerMode will be used in windows to decide if
+// SetPolicies should be used or not
+type PolicyManagerMode string
+
+const (
+	// IPSetPolicyMode will references IPSets in policies
+	IPSetPolicyMode PolicyManagerMode = "IPSet"
+	// IPPolicyMode will replace ipset names with their value IPs in policies
+	IPPolicyMode PolicyManagerMode = "IP"
+)
+
 type PolicyMap struct {
 	cache map[string]*NPMNetworkPolicy
 }
@@ -15,6 +26,7 @@ type PolicyMap struct {
 type PolicyManager struct {
 	policyMap *PolicyMap
 	ioShim    *common.IOShim
+	*PolicyManagerCfg
 }
 
 func NewPolicyManager(ioShim *common.IOShim) *PolicyManager {
@@ -31,6 +43,10 @@ func (pMgr *PolicyManager) Initialize() error {
 		return npmerrors.ErrorWrapper(npmerrors.InitializePolicyMgr, false, "failed to initialize policy manager", err)
 	}
 	return nil
+}
+
+type PolicyManagerCfg struct {
+	Mode PolicyManagerMode
 }
 
 func (pMgr *PolicyManager) Reset() error {
