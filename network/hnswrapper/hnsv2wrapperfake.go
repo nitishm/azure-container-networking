@@ -50,25 +50,25 @@ func (f Hnsv2wrapperFake) ModifyNetworkSettings(network *hcn.HostComputeNetwork,
 	defer f.Unlock()
 	switch request.RequestType {
 	case hcn.RequestTypeAdd:
-		var setPolSettings []hcn.NetworkPolicy
+		var setPolSettings hcn.PolicyNetworkRequest
 		err := json.Unmarshal(request.Settings, &setPolSettings)
 		if err != nil {
 			return err
 		}
-		for _, setPolSetting := range setPolSettings {
+		for _, setPolSetting := range setPolSettings.Policies {
 			if setPolSetting.Type == hcn.SetPolicy {
 				network.Policies = append(network.Policies, setPolSetting)
 			}
 		}
 	case hcn.RequestTypeRemove:
 		newtempPolicies := network.Policies
-		var setPolSettings []hcn.NetworkPolicy
+		var setPolSettings hcn.PolicyNetworkRequest
 		err := json.Unmarshal(request.Settings, &setPolSettings)
 		if err != nil {
 			return err
 		}
 		for i, policy := range network.Policies {
-			for _, newPolicy := range setPolSettings {
+			for _, newPolicy := range setPolSettings.Policies {
 				if policy.Type != newPolicy.Type {
 					continue
 				}
@@ -81,12 +81,12 @@ func (f Hnsv2wrapperFake) ModifyNetworkSettings(network *hcn.HostComputeNetwork,
 		network.Policies = newtempPolicies
 	case hcn.RequestTypeUpdate:
 		network.Policies = []hcn.NetworkPolicy{}
-		var setPolSettings []hcn.NetworkPolicy
+		var setPolSettings hcn.PolicyNetworkRequest
 		err := json.Unmarshal(request.Settings, &setPolSettings)
 		if err != nil {
 			return err
 		}
-		for _, setPolSetting := range setPolSettings {
+		for _, setPolSetting := range setPolSettings.Policies {
 			if setPolSetting.Type == hcn.SetPolicy {
 				network.Policies = append(network.Policies, setPolSetting)
 			}
