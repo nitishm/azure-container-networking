@@ -204,15 +204,6 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		},
 	}
 
-	// retrieve KUBE-SERVICES index
-	kubeServicesLine, err := iptMgr.getChainLineNumber(util.IptablesKubeServicesChain, util.IptablesForwardChain)
-	if err != nil {
-		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to get index of KUBE-SERVICES in FORWARD chain with error: %s", err.Error())
-		return err
-	}
-
-	index := kubeServicesLine + 1
-
 	exists, err := iptMgr.exists(entry)
 	if err != nil {
 		return err
@@ -221,6 +212,7 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 	if !exists {
 		// position Azure-NPM chain after Kube-Forward and Kube-Service chains if it exists
 		iptMgr.OperationFlag = util.IptablesInsertionFlag
+		index := 1
 		entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
 		if _, err = iptMgr.run(entry); err != nil {
 			metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to add AZURE-NPM chain to FORWARD chain.")
@@ -228,39 +220,6 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		}
 
 		return nil
-	}
-
-	npmChainLine, err := iptMgr.getChainLineNumber(util.IptablesAzureChain, util.IptablesForwardChain)
-	if err != nil {
-		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to get index of AZURE-NPM in FORWARD chain with error: %s", err.Error())
-		return err
-	}
-
-	// Kube-services line number is less than npm chain line number then all good
-	if kubeServicesLine < npmChainLine {
-		return nil
-	} else if kubeServicesLine <= 0 {
-		return nil
-	}
-
-	errCode := 0
-	// NPM Chain number is less than KUBE-SERVICES then
-	// delete existing NPM chain and add it in the right order
-	iptMgr.OperationFlag = util.IptablesDeletionFlag
-	metrics.SendErrorLogAndMetric(util.IptmID, "Info: Reconciler deleting and re-adding AZURE-NPM in FORWARD table.")
-	if errCode, err = iptMgr.run(entry); err != nil {
-		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to delete AZURE-NPM chain from FORWARD chain with error code %d.", errCode)
-		return err
-	}
-	iptMgr.OperationFlag = util.IptablesInsertionFlag
-	// Reduce index for deleted AZURE-NPM chain
-	if index > 1 {
-		index--
-	}
-	entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
-	if errCode, err = iptMgr.run(entry); err != nil {
-		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to add AZURE-NPM chain to FORWARD chain with error code %d.", errCode)
-		return err
 	}
 
 	return nil
