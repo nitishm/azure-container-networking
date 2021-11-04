@@ -86,6 +86,47 @@ for add:
 
 for delete:
 - skip the delete if it fails for any reason
+
+overall format for ipset restore file:
+	[flushes]  (random order)
+	[destroys] (random order)
+	[creates]  (random order)
+	[deletes and adds for sets already in the kernel] (in order of occurrence in save file, deletes first (in random order), then adds (in random order))
+	[adds for new sets] (random order for sets and members)
+
+example restore file (where every set in add/update cache should have ip 1.2.3.4 and 2.3.4.5):
+-F set-to-delete2
+-F set-to-delete3
+-F set-to-delete1
+-X set-to-delete2
+-X set-to-delete3
+-X set-to-delete1
+-N new-set-2
+-N set-in-kernel-2
+-N set-in-kernel-1
+-N new-set-1
+-N new-set-3
+-D set-in-kernel-1 8.8.8.8
+-D set-in-kernel-1 9.9.9.9
+-A set-in-kernel-1 2.3.4.5
+-D set-in-kernel-2 3.3.3.3
+-A set-in-kernel-2 2.3.4.5
+-A set-in-kernel-2 1.2.3.4
+-A new-set-2 1.2.3.4
+-A new-set-2 2.3.4.5
+-A new-set-1 2.3.4.5
+-A new-set-1 1.2.3.4
+-A new-set-3 1.2.3.4
+-A new-set-3 2.3.4.5
+
+save file for example above:
+	create set-in-kernel-1 net:hash ...
+	add set-in-kernel-1 1.2.3.4
+	add set-in-kernel-1 8.8.8.8
+	add set-in-kernel-1 9.9.9.9
+	create set-in-kernel-2 net:hash ...
+	add set-in-kernel-1 3.3.3.3
+
 */
 
 func (iMgr *IPSetManager) applyIPSets() error {
