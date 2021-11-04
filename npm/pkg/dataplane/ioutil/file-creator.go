@@ -8,11 +8,9 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
-	"github.com/Azure/azure-container-networking/log"
 	npmerrors "github.com/Azure/azure-container-networking/npm/util/errors"
+	"k8s.io/klog"
 )
-
-// TODO add file creator log prefix
 
 // FileCreator is a tool for:
 // - building a buffer file
@@ -56,18 +54,23 @@ type ErrorDefinition struct {
 type LineErrorHandler struct {
 	Definition *ErrorDefinition
 	Method     LineErrorHandlerMethod
-	Reason     string
 	Callback   func()
 }
 
 // LineErrorHandlerMethod defines behavior when an error occurs
 type LineErrorHandlerMethod string
 
-// possible LineErrorHandlerMethod
 const (
-	SkipLine     LineErrorHandlerMethod = "skip"
-	AbortSection LineErrorHandlerMethod = "abort"
+	// Continue specifies skipping this line and all previous lines
+	Continue LineErrorHandlerMethod = "continue"
+	// ContinueAndAbortSection specifies skipping this line, all previous lines, and all lines tied to this line's section
+	ContinueAndAbortSection LineErrorHandlerMethod = "continue-and-abort"
+
+	anyMatchPattern = ".*"
 )
+
+// AlwaysMatchDefinition will match any error
+var AlwaysMatchDefinition = NewErrorDefinition(anyMatchPattern)
 
 func NewFileCreator(ioShim *common.IOShim, maxTryCount int, lineFailurePatterns ...string) *FileCreator {
 	creator := &FileCreator{
@@ -128,21 +131,22 @@ func (creator *FileCreator) RunCommandWithFile(cmd string, args ...string) error
 		// success
 		return nil
 	}
+	commandString := cmd + " " + strings.Join(args, " ")
 	for {
-		commandString := cmd + " " + strings.Join(args, " ")
 		if creator.hasNoMoreRetries() {
 			// TODO conditionally specify as retriable?
 			return npmerrors.Errorf(npmerrors.RunFileCreator, false, fmt.Sprintf("failed to run command [%s] with error: %v", commandString, err))
 		}
 		if wasFileAltered {
 			fileString = creator.ToString()
-			log.Logf("rerunning command [%s] with new file:\n%s", commandString, fileString)
+			klog.Infof("rerunning command [%s] with new file:\n%s", commandString, fileString)
 		} else {
-			log.Logf("rerunning command [%s] with the same file", commandString)
+			klog.Infof("rerunning command [%s] with the same file", commandString)
 		}
 		wasFileAltered, err = creator.runCommandOnceWithFile(fileString, cmd, args...)
 		if err == nil {
 			// success
+			klog.Infof("successfully ran command [%s] on try number %d", commandString, creator.tryCount)
 			return nil
 		}
 	}
@@ -160,8 +164,15 @@ func (creator *FileCreator) RunCommandOnceWithFile(cmd string, args ...string) (
 	return creator.runCommandOnceWithFile(fileString, cmd, args...)
 }
 
+// returns whether the file was altered and any error
 // TODO return another bool that specifies if there was a file-level retriable error?
 func (creator *FileCreator) runCommandOnceWithFile(fileString, cmd string, args ...string) (bool, error) {
+	commandString := cmd + " " + strings.Join(args, " ")
+	if fileString == "" { // NOTE this wouldn't prevent us from running an iptables restore file with just "COMMIT\n"
+		klog.Infof("returning as a success without running command [%s] since the fileString is empty", commandString)
+		return false, nil
+	}
+
 	command := creator.ioShim.Exec.Command(cmd, args...)
 	command.SetStdin(bytes.NewBufferString(fileString))
 
@@ -173,16 +184,15 @@ func (creator *FileCreator) runCommandOnceWithFile(fileString, cmd string, args 
 	}
 	creator.tryCount++
 
-	commandString := cmd + " " + strings.Join(args, " ")
 	stdErr := string(stdErrBytes)
-	log.Errorf("on try number %d, failed to run command [%s] with error [%v] and stdErr [%s]. Used file:\n%s", creator.tryCount, commandString, err, stdErr, fileString)
+	klog.Errorf("on try number %d, failed to run command [%s] with error [%v] and stdErr [%s]. Used file:\n%s", creator.tryCount, commandString, err, stdErr, fileString)
 	if creator.hasNoMoreRetries() {
 		return false, fmt.Errorf("after %d tries, failed with final error [%w] and stdErr [%s]", creator.tryCount, err, stdErr)
 	}
 
 	// begin the retry logic
 	if creator.hasFileLevelError(stdErr) {
-		log.Logf("detected a file-level error after running command [%s]", commandString)
+		klog.Infof("detected a file-level error after running command [%s]", commandString)
 		return false, fmt.Errorf("file-level error: %w", err)
 	}
 
@@ -210,7 +220,7 @@ func (creator *FileCreator) hasFileLevelError(stdErr string) bool {
 }
 
 func (definition *ErrorDefinition) isMatch(stdErr string) bool {
-	return definition.re.MatchString(stdErr)
+	return definition.matchPattern == anyMatchPattern || definition.re.MatchString(stdErr)
 }
 
 // return -1 if there's a failure
@@ -218,17 +228,20 @@ func (creator *FileCreator) getErrorLineNumber(commandString, stdErr string) int
 	for _, definition := range creator.lineFailureDefinitions {
 		result := definition.re.FindStringSubmatch(stdErr)
 		if result == nil || len(result) < 2 {
-			log.Logf("expected error with line number, but couldn't detect one with error regex pattern [%s] for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
+			klog.Infof("expected error with line number, but couldn't detect one with error regex pattern [%s] for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
 			continue
 		}
 		lineNumString := result[1]
 		lineNum, err := strconv.Atoi(lineNumString)
 		if err != nil {
-			log.Logf("expected error with line number, but error regex pattern %s didn't produce a number for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
+			klog.Infof("expected error with line number, but error regex pattern %s didn't produce a number for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
 			continue
 		}
 		if lineNum < 1 || lineNum > len(creator.lines) {
-			log.Logf("expected error with line number, but error regex pattern %s produced an invalid line number %d for command [%s] with stdErr [%s]", definition.matchPattern, lineNum, commandString, stdErr)
+			klog.Infof(
+				"expected error with line number, but error regex pattern %s produced an invalid line number %d for command [%s] with stdErr [%s]",
+				definition.matchPattern, lineNum, commandString, stdErr,
+			)
 			continue
 		}
 		return lineNum
@@ -245,26 +258,24 @@ func (creator *FileCreator) handleLineError(lineNum int, commandString, stdErr s
 			continue
 		}
 		switch errorHandler.Method {
-		case SkipLine:
-			log.Errorf("skipping line %d for command [%s]", lineNumIndex, commandString)
-			creator.lineNumbersToOmit[lineNumIndex] = struct{}{}
-			errorHandler.Callback()
-			return true
-		case AbortSection:
-			log.Errorf("aborting section associated with line %d for command [%s]", lineNumIndex, commandString)
-			section, exists := creator.sections[line.sectionID]
-			if !exists {
-				log.Errorf("can't abort section because line references section %d which doesn't exist, so skipping the line instead", line.sectionID)
-				creator.lineNumbersToOmit[lineNumIndex] = struct{}{}
-			} else {
-				for _, lineNum := range section.lineNums {
-					creator.lineNumbersToOmit[lineNum] = struct{}{}
-				}
+		case Continue:
+			klog.Errorf("continuing after line %d for command [%s]", lineNum, commandString)
+			for k := 0; k <= lineNumIndex; k++ {
+				creator.lineNumbersToOmit[k] = struct{}{}
+			}
+		case ContinueAndAbortSection:
+			klog.Errorf("continuing after line %d and aborting section associated with the line for command [%s]", lineNum, commandString)
+			for k := 0; k <= lineNumIndex; k++ {
+				creator.lineNumbersToOmit[k] = struct{}{}
+			}
+			section := creator.sections[line.sectionID]
+			for _, lineNum := range section.lineNums {
+				creator.lineNumbersToOmit[lineNum] = struct{}{}
 			}
 		}
 		errorHandler.Callback()
 		return true
 	}
-	log.Logf("no error handler for line %d for command [%s] with stdErr [%s]", lineNum, commandString, stdErr)
+	klog.Infof("no error handler for line %d for command [%s] with stdErr [%s]", lineNum, commandString, stdErr)
 	return false
 }
