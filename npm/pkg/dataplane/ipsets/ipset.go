@@ -3,7 +3,6 @@ package ipsets
 import (
 	"errors"
 	"fmt"
-	"reflect"
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/npm/util"
@@ -272,39 +271,6 @@ func (set *IPSet) ShallowCompare(newSet *IPSet) bool {
 	return true
 }
 
-// Compare checks if two ipsets are same
-func (set *IPSet) Compare(newSet *IPSet) bool {
-	if set.Name != newSet.Name {
-		return false
-	}
-	if set.Kind != newSet.Kind {
-		return false
-	}
-	if set.Type != newSet.Type {
-		return false
-	}
-	if set.Kind == HashSet {
-		if len(set.IPPodKey) != len(newSet.IPPodKey) {
-			return false
-		}
-		for podIP := range set.IPPodKey {
-			if _, ok := newSet.IPPodKey[podIP]; !ok {
-				return false
-			}
-		}
-	} else {
-		if len(set.MemberIPSets) != len(newSet.MemberIPSets) {
-			return false
-		}
-		for _, memberSet := range set.MemberIPSets {
-			if _, ok := newSet.MemberIPSets[memberSet.HashedName]; !ok {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func (set *IPSet) incIPSetReferCount() {
 	set.ipsetReferCount++
 }
@@ -402,8 +368,4 @@ func (set *IPSet) canSetBeSelectorIPSet() bool {
 		set.Type == KeyValueLabelOfPod ||
 		set.Type == Namespace ||
 		set.Type == NestedLabelOfPod)
-}
-
-func (ipset *TranslatedIPSet) Equals(otherIPSet *TranslatedIPSet) bool {
-	return reflect.DeepEqual(ipset, otherIPSet)
 }
