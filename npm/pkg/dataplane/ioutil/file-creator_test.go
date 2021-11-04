@@ -17,11 +17,15 @@ const (
 	section2ID        = "section2"
 )
 
-var fakeSuccessCommand = testutils.TestCmd{
-	Cmd:      []string{testCommandString},
-	Stdout:   "success",
-	ExitCode: 0,
-}
+var (
+	fakeSuccessCommand = testutils.TestCmd{
+		Cmd: []string{testCommandString},
+	}
+	fakeFailureCommand = testutils.TestCmd{
+		Cmd:      []string{testCommandString},
+		ExitCode: 1,
+	}
+)
 
 func TestToStringAndSections(t *testing.T) {
 	creator := NewFileCreator(common.NewMockIOShim(nil), 1)
@@ -51,51 +55,92 @@ line3-item1 line3-item2 line3-item3
 func TestRunCommandWithFile(t *testing.T) {
 	calls := []testutils.TestCmd{fakeSuccessCommand}
 	creator := NewFileCreator(common.NewMockIOShim(calls), 1)
+	creator.AddLine("", nil, "line1")
 	require.NoError(t, creator.RunCommandWithFile(testCommandString))
 }
 
-func TestRecoveryForFileLevelError(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{
-			Cmd:      []string{testCommandString},
-			Stdout:   "file-level error",
-			ExitCode: 4,
-		},
-		fakeSuccessCommand,
-	}
+func TestRunCommandWhenFileIsEmpty(t *testing.T) {
+	calls := []testutils.TestCmd{fakeSuccessCommand}
+	creator := NewFileCreator(common.NewMockIOShim(calls), 1)
+	wasFileAltered, err := creator.RunCommandOnceWithFile(testCommandString)
+	require.False(t, wasFileAltered)
+	require.NoError(t, err)
+}
+
+func TestRunCommandSuccessAfterRecovery(t *testing.T) {
+	calls := []testutils.TestCmd{fakeFailureCommand, fakeSuccessCommand}
 	creator := NewFileCreator(common.NewMockIOShim(calls), 2)
-	creator.AddErrorToRetryOn(NewErrorDefinition("file-level error"))
+	creator.AddLine("", nil, "line1")
 	require.NoError(t, creator.RunCommandWithFile(testCommandString))
 }
 
-func TestRecoveryForLineError(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{
-			Cmd:      []string{testCommandString},
-			Stdout:   "failure on line 2",
-			ExitCode: 4,
-		},
-		fakeSuccessCommand,
-	}
-	creator := NewFileCreator(common.NewMockIOShim(calls), 2, "failure on line (\\d+)")
-	require.NoError(t, creator.RunCommandWithFile(testCommandString))
-}
-
-func TestTotalFailureAfterRetries(t *testing.T) {
-	errorCommand := testutils.TestCmd{
-		Cmd:      []string{testCommandString},
-		Stdout:   "some error",
-		ExitCode: 4,
-	}
-	calls := []testutils.TestCmd{errorCommand, errorCommand, errorCommand}
-	creator := NewFileCreator(common.NewMockIOShim(calls), 2)
+func TestRunCommandFailureFromNoMoreTries(t *testing.T) {
+	calls := []testutils.TestCmd{fakeFailureCommand}
+	creator := NewFileCreator(common.NewMockIOShim(calls), 1)
+	creator.AddLine("", nil, "line1")
 	require.Error(t, creator.RunCommandWithFile(testCommandString))
 }
 
-func TestHandleLineErrorForAbortSection(t *testing.T) {
+func TestRunCommandOnceWithNoMoreTries(t *testing.T) {
+	creator := NewFileCreator(common.NewMockIOShim(nil), 0)
+	_, err := creator.RunCommandOnceWithFile(testCommandString)
+	require.Error(t, err)
+}
+
+func TestRecoveryForFileLevelErrors(t *testing.T) {
+	knownFileLevelErrorCommand := testutils.TestCmd{
+		Cmd:      []string{testCommandString},
+		Stdout:   "file-level error over here",
+		ExitCode: 1,
+	}
+	unknownFileLevelErrorCommand := testutils.TestCmd{
+		Cmd:      []string{testCommandString},
+		Stdout:   "not sure what's wrong",
+		ExitCode: 1,
+	}
+	calls := []testutils.TestCmd{
+		knownFileLevelErrorCommand,
+		unknownFileLevelErrorCommand,
+		unknownFileLevelErrorCommand,
+		fakeSuccessCommand,
+	}
+	creator := NewFileCreator(common.NewMockIOShim(calls), 4)
+	creator.AddErrorToRetryOn(NewErrorDefinition("file-level error"))
+	creator.AddLine("", nil, "line1")
+	wasFileAltered, err := creator.RunCommandOnceWithFile(testCommandString)
+	require.False(t, wasFileAltered)
+	require.Error(t, err)
+	wasFileAltered, err = creator.RunCommandOnceWithFile(testCommandString)
+	require.False(t, wasFileAltered)
+	require.Error(t, err)
+	require.NoError(t, creator.RunCommandWithFile(testCommandString))
+}
+
+func TestRecoveryWhenFileAltered(t *testing.T) {
 	fakeErrorCommand := testutils.TestCmd{
 		Cmd:      []string{testCommandString},
-		Stdout:   "failure on line 1: match-pattern do something please",
+		Stdout:   "failure on line 2: match-pattern do something please",
+		ExitCode: 1,
+	}
+	calls := []testutils.TestCmd{fakeErrorCommand, fakeSuccessCommand}
+	creator := NewFileCreator(common.NewMockIOShim(calls), 2, "failure on line (\\d+)")
+	errorHandlers := []*LineErrorHandler{
+		{
+			Definition: NewErrorDefinition("match-pattern"),
+			Method:     Continue,
+			Callback:   func() { log.Logf("'continue' callback") },
+		},
+	}
+	creator.AddLine(section1ID, nil, "line1-item1", "line1-item2", "line1-item3")
+	creator.AddLine(section2ID, errorHandlers, "line2-item1", "line2-item2", "line2-item3")
+	creator.AddLine(section1ID, nil, "line3-item1", "line3-item2", "line3-item3")
+	require.NoError(t, creator.RunCommandWithFile(testCommandString))
+}
+
+func TestHandleLineErrorForContinueAndAbortSection(t *testing.T) {
+	fakeErrorCommand := testutils.TestCmd{
+		Cmd:      []string{testCommandString},
+		Stdout:   "failure on line 2: match-pattern do something please",
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{fakeErrorCommand}
@@ -104,28 +149,27 @@ func TestHandleLineErrorForAbortSection(t *testing.T) {
 		// first error handler doesn't match (include this to make sure the real match gets reached)
 		{
 			Definition: NewErrorDefinition("abc"),
-			Method:     AbortSection,
-			Reason:     "",
+			Method:     ContinueAndAbortSection,
 			Callback:   func() {},
 		},
 		{
 			Definition: NewErrorDefinition("match-pattern"),
-			Method:     AbortSection,
-			Reason:     "error requiring us to abort section",
-			Callback:   func() { log.Logf("abort section callback") },
+			Method:     ContinueAndAbortSection,
+			Callback:   func() { log.Logf("'continue and abort section' callback") },
 		},
 	}
-	creator.AddLine(section1ID, errorHandlers, "line1-item1", "line1-item2", "line1-item3")
-	creator.AddLine(section2ID, nil, "line2-item1", "line2-item2", "line2-item3")
+	creator.AddLine(section1ID, nil, "line1-item1", "line1-item2", "line1-item3")
+	creator.AddLine(section2ID, errorHandlers, "line2-item1", "line2-item2", "line2-item3")
 	creator.AddLine(section1ID, nil, "line3-item1", "line3-item2", "line3-item3")
+	creator.AddLine(section2ID, nil, "line4-item1", "line4-item2", "line4-item3")
 	wasFileAltered, err := creator.RunCommandOnceWithFile(testCommandString)
 	require.Error(t, err)
 	require.True(t, wasFileAltered)
 	fileString := creator.ToString()
-	assert.Equal(t, "line2-item1 line2-item2 line2-item3\n", fileString)
+	assert.Equal(t, "line3-item1 line3-item2 line3-item3\n", fileString)
 }
 
-func TestHandleLineErrorForSkipLine(t *testing.T) {
+func TestHandleLineErrorForContinue(t *testing.T) {
 	fakeErrorCommand := testutils.TestCmd{
 		Cmd:      []string{testCommandString},
 		Stdout:   "failure on line 2: match-pattern do something please",
@@ -136,19 +180,19 @@ func TestHandleLineErrorForSkipLine(t *testing.T) {
 	errorHandlers := []*LineErrorHandler{
 		{
 			Definition: NewErrorDefinition("match-pattern"),
-			Method:     SkipLine,
-			Reason:     "error requiring us to skip this line",
-			Callback:   func() { log.Logf("skip line callback") },
+			Method:     Continue,
+			Callback:   func() { log.Logf("'continue' callback") },
 		},
 	}
 	creator.AddLine("", nil, "line1-item1", "line1-item2", "line1-item3")
 	creator.AddLine("", errorHandlers, "line2-item1", "line2-item2", "line2-item3")
 	creator.AddLine("", nil, "line3-item1", "line3-item2", "line3-item3")
+	creator.AddLine("", errorHandlers, "line4-item1", "line4-item2", "line4-item3")
 	wasFileAltered, err := creator.RunCommandOnceWithFile(testCommandString)
 	require.Error(t, err)
 	require.True(t, wasFileAltered)
 	fileString := creator.ToString()
-	assert.Equal(t, "line1-item1 line1-item2 line1-item3\nline3-item1 line3-item2 line3-item3\n", fileString)
+	assert.Equal(t, "line3-item1 line3-item2 line3-item3\nline4-item1 line4-item2 line4-item3\n", fileString)
 }
 
 func TestHandleLineErrorNoMatch(t *testing.T) {
@@ -162,8 +206,7 @@ func TestHandleLineErrorNoMatch(t *testing.T) {
 	errorHandlers := []*LineErrorHandler{
 		{
 			Definition: NewErrorDefinition("abc"),
-			Method:     AbortSection,
-			Reason:     "",
+			Method:     ContinueAndAbortSection,
 			Callback:   func() {},
 		},
 	}
@@ -176,6 +219,10 @@ func TestHandleLineErrorNoMatch(t *testing.T) {
 	require.False(t, wasFileAltered)
 	fileStringAfter := creator.ToString()
 	require.Equal(t, fileStringBefore, fileStringAfter)
+}
+
+func TestAlwaysMatchDefinition(t *testing.T) {
+	require.True(t, AlwaysMatchDefinition.isMatch("123456789asdfghjklxcvbnm, jklfdsa7"))
 }
 
 func TestGetErrorLineNumber(t *testing.T) {
