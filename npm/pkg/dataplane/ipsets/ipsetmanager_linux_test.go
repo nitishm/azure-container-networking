@@ -25,6 +25,9 @@ var (
 	ipsetSaveStringSlice    = []string{"ipset", "save"}
 )
 
+// TODO test that a reconcile list is updated for all the TestFailure UTs
+// TODO same exact TestFailure UTs for unknown errors
+
 func TestDestroyNPMIPSets(t *testing.T) {
 	// TODO
 	calls := []testutils.TestCmd{}
@@ -35,6 +38,7 @@ func TestDestroyNPMIPSets(t *testing.T) {
 func TestApplyIPSetsSuccess(t *testing.T) {
 	calls := []testutils.TestCmd{
 		{Cmd: ipsetSaveStringSlice, Stdout: saveResult},
+		{Cmd: []string{"grep", "azure-npm-"}},
 		{Cmd: ipsetRestoreStringSlice},
 	}
 	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
@@ -44,16 +48,21 @@ func TestApplyIPSetsSuccess(t *testing.T) {
 }
 
 func TestApplyIPSetsFailureOnSave(t *testing.T) {
-	calls := []testutils.TestCmd{{Cmd: ipsetSaveStringSlice, ExitCode: 1}}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
-	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create a set so the file isn't empty (otherwise the creator will not even call the exec command)
-	err := iMgr.applyIPSets()
-	require.Error(t, err)
+	// TODO test this when pipe errors for UTs are implemented
+	// calls := []testutils.TestCmd{
+	// 	{Cmd: ipsetSaveStringSlice, ExitCode: 2},
+	// 	{Cmd: []string{"grep", "azure-npm-"}},
+	// }
+	// iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	// iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create a set so the file isn't empty (otherwise the creator will not even call the exec command)
+	// err := iMgr.applyIPSets()
+	// require.Error(t, err)
 }
 
 func TestApplyIPSetsFailureOnRestore(t *testing.T) {
 	calls := []testutils.TestCmd{
 		{Cmd: ipsetSaveStringSlice},
+		{Cmd: []string{"grep", "azure-npm-"}, ExitCode: 1}, // FIXME later (this exit code is for command below)
 		// fail 3 times because this is our max try count
 		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
 		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
@@ -68,8 +77,8 @@ func TestApplyIPSetsFailureOnRestore(t *testing.T) {
 func TestApplyIPSetsRecoveryForFailureOnRestore(t *testing.T) {
 	calls := []testutils.TestCmd{
 		{Cmd: ipsetSaveStringSlice},
-		// fail 3 times because this is our max try count
-		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
+		{Cmd: []string{"grep", "azure-npm-"}, ExitCode: 1}, // FIXME later (this exit code is for command below)
+		{Cmd: ipsetRestoreStringSlice},                     // FIXME later   ExitCode: 1},
 		{Cmd: ipsetRestoreStringSlice},
 	}
 	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
@@ -79,11 +88,25 @@ func TestApplyIPSetsRecoveryForFailureOnRestore(t *testing.T) {
 }
 
 func TestIPSetSave(t *testing.T) {
-	calls := []testutils.TestCmd{{Cmd: ipsetSaveStringSlice, Stdout: saveResult}}
+	calls := []testutils.TestCmd{
+		{Cmd: ipsetSaveStringSlice, Stdout: saveResult},
+		{Cmd: []string{"grep", "azure-npm-"}},
+	}
 	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
 	output, err := iMgr.ipsetSave()
 	require.NoError(t, err)
 	require.Equal(t, saveResult, string(output))
+}
+
+func TestIPSetSaveNoMatch(t *testing.T) {
+	calls := []testutils.TestCmd{
+		{Cmd: ipsetSaveStringSlice, ExitCode: 1},
+		{Cmd: []string{"grep", "azure-npm-"}},
+	}
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	output, err := iMgr.ipsetSave()
+	require.NoError(t, err)
+	require.Nil(t, output)
 }
 
 func TestCreateForAllSetTypes(t *testing.T) {
@@ -217,8 +240,6 @@ func TestUpdateWithIdenticalSaveFile(t *testing.T) {
 	wasFileAltered, err := creator.RunCommandOnceWithFile("ipset", "restore")
 	require.NoError(t, err, "ipset restore should be successful")
 	require.False(t, wasFileAltered, "file should not be altered")
-
-	// TODO run actual apply function too (perhaps everywhere too?)
 }
 
 func TestUpdateWithRealisticSaveFile(t *testing.T) {
@@ -383,8 +404,6 @@ func TestUpdateWithBadSaveFile(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO same exact test for unknown error?
-// TODO test that a reconcile list is updated
 func TestFailureOnCreateForNewSet(t *testing.T) {
 	// with respect to the error line, be weary that sets in the save file are processed first and in order, and other sets are processed in random order
 	// test logic:
@@ -432,7 +451,6 @@ func TestFailureOnCreateForNewSet(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO same exact test for unknown error?
 func TestFailureOnCreateForSetInKernel(t *testing.T) {
 	// with respect to the error line, be weary that sets in the save file are processed first and in order, and other sets are processed in random order
 	// test logic:
@@ -490,8 +508,6 @@ func TestFailureOnCreateForSetInKernel(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO same exact test for unknown error?
-// TODO test that a reconcile list is updated
 func TestFailureOnAddToListInKernel(t *testing.T) {
 	// with respect to the error line, be weary that sets in the save file are processed first and in order, and other sets are processed in random order
 	// test logic:
@@ -547,8 +563,6 @@ func TestFailureOnAddToListInKernel(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO same exact test for unknown error?
-// TODO test that a reconcile list is updated
 func TestFailureOnAddToNewList(t *testing.T) {
 	// with respect to the error line, be weary that sets in the save file are processed first and in order, and other sets are processed in random order
 	// test logic:
@@ -599,13 +613,10 @@ func TestFailureOnAddToNewList(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO test that a reconcile list is updated
 func TestFailureOnDelete(t *testing.T) {
 	// TODO
 }
 
-// TODO same exact test for unknown error?
-// TODO test that a reconcile list is updated
 func TestFailureOnFlush(t *testing.T) {
 	// test logic:
 	// - delete two sets. the first to appear will fail to flush
@@ -657,8 +668,6 @@ func TestFailureOnFlush(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO same exact test for unknown error?
-// TODO test that a reconcile list is updated
 func TestFailureOnDestroy(t *testing.T) {
 	// test logic:
 	// - delete two sets. the first to appear will fail to delete
@@ -735,15 +744,12 @@ func TestFailureOnLastLine(t *testing.T) {
 	require.False(t, wasFileAltered, "file should not be altered")
 }
 
-// TODO if we add file-level error handlers, add tests for them
-
 // make sure file goes in order of flushes, destroys, creates, then adds/deletes,
 // then sort those sections and return the lines in an array
 func testAndSortRestoreFileString(t *testing.T, multilineString string) []string {
 	return testAndSortRestoreFileLines(t, strings.Split(multilineString, "\n"))
 }
 
-// FIXME make sure we create all members of lists
 func testAndSortRestoreFileLines(t *testing.T, lines []string) []string {
 	require.True(t, lines[len(lines)-1] == "", "restore file must end with blank line")
 	lines = lines[:len(lines)-1] // remove the blank line
