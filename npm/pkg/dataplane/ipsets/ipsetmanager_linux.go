@@ -130,9 +130,13 @@ save file for example above:
 */
 
 func (iMgr *IPSetManager) applyIPSets() error {
-	saveFile, saveError := iMgr.ipsetSave()
-	if saveError != nil {
-		return fmt.Errorf("%w", saveError)
+	var saveFile []byte
+	var saveError error
+	if len(iMgr.toAddOrUpdateCache) > 0 {
+		saveFile, saveError = iMgr.ipsetSave()
+		if saveError != nil {
+			return fmt.Errorf("%w", saveError)
+		}
 	}
 	creator := iMgr.fileCreator(maxTryCount, saveFile)
 	restoreError := creator.RunCommandWithFile(ipsetCommand, ipsetRestoreFlag)
@@ -366,7 +370,7 @@ func (iMgr *IPSetManager) destroySetInFile(creator *ioutil.FileCreator, prefixed
 			Definition: setInUseByKernelDefinition,
 			Method:     ioutil.Continue,
 			Callback: func() {
-				klog.Errorf("skipping delete line for set %s since the set is in use by a kernel component", prefixedName)
+				klog.Errorf("skipping destroy line for set %s since the set is in use by a kernel component", prefixedName)
 				// TODO mark the set as a failure and reconcile what iptables rule or ipset is referring to it
 			},
 		},
@@ -374,7 +378,7 @@ func (iMgr *IPSetManager) destroySetInFile(creator *ioutil.FileCreator, prefixed
 			Definition: ioutil.AlwaysMatchDefinition,
 			Method:     ioutil.Continue,
 			Callback: func() {
-				klog.Errorf("skipping delete line for set %s due to unknown error", prefixedName)
+				klog.Errorf("skipping destroy line for set %s due to unknown error", prefixedName)
 			},
 		},
 	}
