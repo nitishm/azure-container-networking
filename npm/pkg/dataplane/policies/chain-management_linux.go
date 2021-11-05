@@ -301,7 +301,7 @@ func (pMgr *PolicyManager) getChainLineNumber(chain string) (int, error) {
 		util.IptablesWaitFlag, defaultlockWaitTimeInSeconds, util.IptablesTableFlag, util.IptablesFilterTable,
 		util.IptablesNumericFlag, util.IptablesListFlag, util.IptablesForwardChain, util.IptablesLineNumbersFlag,
 	)
-	grepCommand := pMgr.ioShim.Exec.Command(ioutil.GrepCommand, chain)
+	grepCommand := pMgr.ioShim.Exec.Command(ioutil.Grep, chain)
 	searchResults, gotMatches, err := ioutil.PipeCommandToGrep(listForwardEntriesCommand, grepCommand)
 	if err != nil {
 		// not possible to cover this branch currently because of testing limitations for PipeCommandToGrep()
@@ -336,7 +336,7 @@ func (pMgr *PolicyManager) getPolicyChainNames() ([]string, error) {
 		util.IptablesWaitFlag, defaultlockWaitTimeInSeconds, util.IptablesTableFlag, util.IptablesFilterTable,
 		util.IptablesNumericFlag, util.IptablesListFlag,
 	)
-	grepCommand := pMgr.ioShim.Exec.Command(ioutil.GrepCommand, ingressOrEgressPolicyChainPattern)
+	grepCommand := pMgr.ioShim.Exec.Command(ioutil.Grep, ingressOrEgressPolicyChainPattern)
 	searchResults, gotMatches, err := ioutil.PipeCommandToGrep(iptablesListCommand, grepCommand)
 	if err != nil {
 		// not possible to cover this branch currently because of testing limitations for PipeCommandToGrep()

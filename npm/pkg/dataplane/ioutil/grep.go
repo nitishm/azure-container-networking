@@ -2,18 +2,18 @@ package ioutil
 
 import utilexec "k8s.io/utils/exec"
 
-// GrepCommand is the grep command string
-const GrepCommand = "grep"
+// Grep is the grep command string
+const Grep = "grep"
 
 func PipeCommandToGrep(command, grepCommand utilexec.Cmd) (searchResults []byte, gotMatches bool, commandError error) {
 	pipe, commandError := command.StdoutPipe()
 	if commandError != nil {
 		return
 	}
-
 	closePipe := func() { _ = pipe.Close() } // appease go lint
 	defer closePipe()
 
+	grepCommand.SetStdin(pipe)
 	commandError = command.Start()
 	if commandError != nil {
 		return
