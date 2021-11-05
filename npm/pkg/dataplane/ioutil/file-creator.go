@@ -134,8 +134,10 @@ func (creator *FileCreator) RunCommandWithFile(cmd string, args ...string) error
 	commandString := cmd + " " + strings.Join(args, " ")
 	for {
 		if creator.hasNoMoreRetries() {
+			errString := fmt.Sprintf("failed to run command [%s] with error: %v", commandString, err)
+			klog.Error(errString)
 			// TODO conditionally specify as retriable?
-			return npmerrors.Errorf(npmerrors.RunFileCreator, false, fmt.Sprintf("failed to run command [%s] with error: %v", commandString, err))
+			return npmerrors.Errorf(npmerrors.RunFileCreator, false, errString)
 		}
 		if wasFileAltered {
 			fileString = creator.ToString()
@@ -199,9 +201,10 @@ func (creator *FileCreator) runCommandOnceWithFile(fileString, cmd string, args 
 	// no file-level error, so handle line-level error if there is one
 	lineNum := creator.getErrorLineNumber(commandString, stdErr)
 	if lineNum == -1 {
-		// can't detect a line number error
+		klog.Infof("couldn't detect a line number error")
 		return false, fmt.Errorf("can't discern error: %w", err)
 	}
+	klog.Infof("detected a line number error on line %d", lineNum)
 	wasFileAltered := creator.handleLineError(lineNum, commandString, stdErr)
 	return wasFileAltered, fmt.Errorf("tried to handle line number error: %w", err)
 }
