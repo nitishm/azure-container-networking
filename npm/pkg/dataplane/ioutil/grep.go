@@ -26,6 +26,7 @@ func PipeCommandToGrep(command, grepCommand utilexec.Cmd) (searchResults []byte,
 	output, err := grepCommand.CombinedOutput()
 	if err != nil {
 		// grep returns err status 1 if nothing is found
+		// but the other command's exit status gets propagated through this CombinedOutput, so we might have errors undetected
 		return
 	}
 	searchResults = output
