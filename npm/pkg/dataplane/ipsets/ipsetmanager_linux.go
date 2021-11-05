@@ -144,11 +144,16 @@ func (iMgr *IPSetManager) applyIPSets() error {
 
 func (iMgr *IPSetManager) ipsetSave() ([]byte, error) {
 	command := iMgr.ioShim.Exec.Command(ipsetCommand, ipsetSaveFlag)
-	output, err := command.CombinedOutput()
+	grepCommand := iMgr.ioShim.Exec.Command(ioutil.Grep, azureNPMPrefix)
+	searchResults, gotMatches, err := ioutil.PipeCommandToGrep(command, grepCommand)
 	if err != nil {
 		return nil, npmerrors.SimpleErrorWrapper("failed to run ipset save", err)
 	}
-	return output, nil
+	if !gotMatches {
+		fmt.Println("here")
+		return nil, nil
+	}
+	return searchResults, nil
 }
 
 func (iMgr *IPSetManager) fileCreator(maxTryCount int, saveFile []byte) *ioutil.FileCreator {
