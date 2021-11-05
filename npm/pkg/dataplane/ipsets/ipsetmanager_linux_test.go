@@ -15,15 +15,10 @@ import (
 
 const saveResult = "create test-list1 list:set size 8\nadd test-list1 test-list2"
 
-var (
-	iMgrApplyAllCfg = &IPSetManagerCfg{
-		IPSetMode:   ApplyAllIPSets,
-		NetworkName: "",
-	}
-
-	ipsetRestoreStringSlice = []string{"ipset", "restore"}
-	ipsetSaveStringSlice    = []string{"ipset", "save"}
-)
+var iMgrApplyAllCfg = &IPSetManagerCfg{
+	IPSetMode:   ApplyAllIPSets,
+	NetworkName: "",
+}
 
 // TODO test that a reconcile list is updated for all the TestFailure UTs
 // TODO same exact TestFailure UTs for unknown errors
@@ -31,68 +26,104 @@ var (
 func TestDestroyNPMIPSets(t *testing.T) {
 	// TODO
 	calls := []testutils.TestCmd{}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
 	require.NoError(t, iMgr.resetIPSets())
 }
 
-func TestApplyIPSetsSuccess(t *testing.T) {
+func TestApplyIPSetsSuccessWithoutSave(t *testing.T) {
+	// no sets to add/update, so don't call ipset save
+	calls := []testutils.TestCmd{{Cmd: ipsetRestoreStringSlice}}
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
+	// delete a set so the file isn't empty (otherwise the creator won't even call the exec command)
+	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create so we can delete
+	iMgr.DeleteIPSet(TestNSSet.PrefixName)
+	err := iMgr.applyIPSets()
+	require.NoError(t, err)
+}
+
+func TestApplyIPSetsSuccessWithSave(t *testing.T) {
+	// no sets to add/update, so don't call ipset save
 	calls := []testutils.TestCmd{
-		{Cmd: ipsetSaveStringSlice, Stdout: saveResult},
+		{Cmd: ipsetSaveStringSlice, PipedToCommand: true},
 		{Cmd: []string{"grep", "azure-npm-"}},
 		{Cmd: ipsetRestoreStringSlice},
 	}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
-	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create a set so the file isn't empty (otherwise the creator will not even call the exec command)
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
+	// create a set so we run ipset save
+	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata})
 	err := iMgr.applyIPSets()
 	require.NoError(t, err)
 }
 
 func TestApplyIPSetsFailureOnSave(t *testing.T) {
-	// TODO test this when pipe errors for UTs are implemented
-	// calls := []testutils.TestCmd{
-	// 	{Cmd: ipsetSaveStringSlice, ExitCode: 2},
-	// 	{Cmd: []string{"grep", "azure-npm-"}},
-	// }
-	// iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
-	// iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create a set so the file isn't empty (otherwise the creator will not even call the exec command)
-	// err := iMgr.applyIPSets()
-	// require.Error(t, err)
+	calls := []testutils.TestCmd{
+		{Cmd: ipsetSaveStringSlice, HasStartError: true, PipedToCommand: true, ExitCode: 1},
+		{Cmd: []string{"grep", "azure-npm-"}},
+	}
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
+	// create a set so we run ipset save
+	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata})
+	err := iMgr.applyIPSets()
+	require.Error(t, err)
 }
 
 func TestApplyIPSetsFailureOnRestore(t *testing.T) {
 	calls := []testutils.TestCmd{
-		{Cmd: ipsetSaveStringSlice},
-		{Cmd: []string{"grep", "azure-npm-"}, ExitCode: 1}, // FIXME later (this exit code is for command below)
+		{Cmd: ipsetSaveStringSlice, PipedToCommand: true},
+		{Cmd: []string{"grep", "azure-npm-"}},
 		// fail 3 times because this is our max try count
 		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
 		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
 		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
 	}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
-	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create a set so the file isn't empty (otherwise the creator will not even call the exec command)
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
+	// create a set so we run ipset save
+	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata})
 	err := iMgr.applyIPSets()
 	require.Error(t, err)
 }
 
 func TestApplyIPSetsRecoveryForFailureOnRestore(t *testing.T) {
 	calls := []testutils.TestCmd{
-		{Cmd: ipsetSaveStringSlice},
-		{Cmd: []string{"grep", "azure-npm-"}, ExitCode: 1}, // FIXME later (this exit code is for command below)
-		{Cmd: ipsetRestoreStringSlice},                     // FIXME later   ExitCode: 1},
+		{Cmd: ipsetSaveStringSlice, PipedToCommand: true},
+		{Cmd: []string{"grep", "azure-npm-"}},
+		{Cmd: ipsetRestoreStringSlice, ExitCode: 1},
 		{Cmd: ipsetRestoreStringSlice},
 	}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
-	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata}) // create a set so the file isn't empty (otherwise the creator will not even call the exec command)
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
+	// create a set so we run ipset save
+	iMgr.CreateIPSets([]*IPSetMetadata{TestNSSet.Metadata})
 	err := iMgr.applyIPSets()
 	require.NoError(t, err)
 }
 
 func TestIPSetSave(t *testing.T) {
 	calls := []testutils.TestCmd{
-		{Cmd: ipsetSaveStringSlice, Stdout: saveResult},
-		{Cmd: []string{"grep", "azure-npm-"}},
+		{Cmd: ipsetSaveStringSlice, PipedToCommand: true},
+		{Cmd: []string{"grep", "azure-npm-"}, Stdout: saveResult},
 	}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
 	output, err := iMgr.ipsetSave()
 	require.NoError(t, err)
 	require.Equal(t, saveResult, string(output))
@@ -103,7 +134,10 @@ func TestIPSetSaveNoMatch(t *testing.T) {
 		{Cmd: ipsetSaveStringSlice, ExitCode: 1},
 		{Cmd: []string{"grep", "azure-npm-"}},
 	}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
+
 	output, err := iMgr.ipsetSave()
 	require.NoError(t, err)
 	require.Nil(t, output)
@@ -112,7 +146,9 @@ func TestIPSetSaveNoMatch(t *testing.T) {
 func TestCreateForAllSetTypes(t *testing.T) {
 	// without save file
 	calls := []testutils.TestCmd{fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	require.NoError(t, iMgr.AddToSets([]*IPSetMetadata{TestNSSet.Metadata}, "10.0.0.0", "a"))
 	require.NoError(t, iMgr.AddToSets([]*IPSetMetadata{TestNSSet.Metadata}, "10.0.0.1", "b"))
@@ -155,7 +191,9 @@ func TestCreateForAllSetTypes(t *testing.T) {
 func TestDestroy(t *testing.T) {
 	// without save file
 	calls := []testutils.TestCmd{fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	// remove some members and destroy some sets
 	require.NoError(t, iMgr.AddToSets([]*IPSetMetadata{TestNSSet.Metadata}, "10.0.0.0", "a"))
@@ -194,7 +232,9 @@ func TestDestroy(t *testing.T) {
 
 func TestUpdateWithIdenticalSaveFile(t *testing.T) {
 	calls := []testutils.TestCmd{fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s hash:net family inet hashsize 1024 maxelem 65536", TestNSSet.HashedName),
@@ -249,7 +289,9 @@ func TestUpdateWithRealisticSaveFile(t *testing.T) {
 	// - have members which we will delete
 	// - are missing members, which we will add
 	calls := []testutils.TestCmd{fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s hash:net family inet hashsize 1024 maxelem 65536", TestNSSet.HashedName),            // should add 10.0.0.1-5 to this set
@@ -338,7 +380,9 @@ func TestHaveTypeProblem(t *testing.T) {
 
 func TestUpdateWithBadSaveFile(t *testing.T) {
 	calls := []testutils.TestCmd{fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	// will have every set in save file in the dirty cache, all with no members
 	cidrSet2 := CreateTestSet("test2", CIDRBlocks)
@@ -416,7 +460,9 @@ func TestFailureOnCreateForNewSet(t *testing.T) {
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{setToCreateAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	// add all of these members to the kernel
 	require.NoError(t, iMgr.AddToSets([]*IPSetMetadata{TestKVPodSet.Metadata}, "1.2.3.4", "a"))             // create and add member
@@ -463,7 +509,9 @@ func TestFailureOnCreateForSetInKernel(t *testing.T) {
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{setToCreateAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s hash:net family inet hashsize 1024 maxelem 65536", TestNSSet.HashedName),
@@ -521,7 +569,9 @@ func TestFailureOnAddToListInKernel(t *testing.T) {
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{setAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s list:set size 8", TestKeyNSList.HashedName),
@@ -576,7 +626,9 @@ func TestFailureOnAddToNewList(t *testing.T) {
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{setAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s hash:net family inet hashsize 1024 maxelem 65536", TestNSSet.HashedName),
@@ -629,7 +681,9 @@ func TestFailureOnFlush(t *testing.T) {
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{setAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s hash:net family inet hashsize 1024 maxelem 65536", TestNSSet.HashedName),
@@ -680,7 +734,9 @@ func TestFailureOnDestroy(t *testing.T) {
 		ExitCode: 1,
 	}
 	calls := []testutils.TestCmd{setAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	saveFileLines := []string{
 		fmt.Sprintf("create %s hash:net family inet hashsize 1024 maxelem 65536", TestNSSet.HashedName),
@@ -720,18 +776,21 @@ func TestFailureOnLastLine(t *testing.T) {
 	// test logic:
 	// - delete a set
 	errorLineNum := 2
-	setAlreadyExistsCommand := testutils.TestCmd{
-		Cmd:      ipsetRestoreStringSlice,
-		Stdout:   fmt.Sprintf("Error in line %d: some destroy error", errorLineNum),
-		ExitCode: 1,
+	calls := []testutils.TestCmd{
+		{
+			Cmd:      ipsetRestoreStringSlice,
+			Stdout:   fmt.Sprintf("Error in line %d: some destroy error", errorLineNum),
+			ExitCode: 1,
+		},
 	}
-	calls := []testutils.TestCmd{setAlreadyExistsCommand, fakeRestoreSuccessCommand}
-	iMgr := NewIPSetManager(iMgrApplyAllCfg, common.NewMockIOShim(calls))
+	ioshim := common.NewMockIOShim(calls)
+	defer ioshim.VerifyCalls(t, calls)
+	iMgr := NewIPSetManager(iMgrApplyAllCfg, ioshim)
 
 	iMgr.CreateIPSets([]*IPSetMetadata{TestCIDRSet.Metadata}) // create so we can delete
 	iMgr.DeleteIPSet(TestCIDRSet.PrefixName)
 
-	creator := iMgr.fileCreator(len(calls), nil)
+	creator := iMgr.fileCreator(2, nil)
 	wasFileAltered, err := creator.RunCommandOnceWithFile("ipset", "restore")
 	require.Error(t, err, "ipset restore should fail")
 	require.True(t, wasFileAltered, "file should be altered")
