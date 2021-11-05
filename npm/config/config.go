@@ -14,10 +14,11 @@ var DefaultConfig = Config{
 	ListeningPort:         defaultListeningPort,
 	ListeningAddress:      "0.0.0.0",
 	Toggles: Toggles{
-		EnablePrometheusMetrics: true,
-		EnablePprof:             true,
-		EnableHTTPDebugAPI:      true,
-		EnableV2Controllers:     false,
+		EnablePrometheusMetrics:          true,
+		EnablePprof:                      true,
+		EnableHTTPDebugAPI:               true,
+		EnableV2Controllers:              false,
+		PlaceAzureChainBeforeKubeForward: false,
 	},
 }
 
@@ -29,8 +30,9 @@ type Config struct {
 }
 
 type Toggles struct {
-	EnablePrometheusMetrics bool
-	EnablePprof             bool
-	EnableHTTPDebugAPI      bool
-	EnableV2Controllers     bool
+	EnablePrometheusMetrics          bool
+	EnablePprof                      bool
+	EnableHTTPDebugAPI               bool
+	EnableV2Controllers              bool
+	PlaceAzureChainBeforeKubeForward bool
 }

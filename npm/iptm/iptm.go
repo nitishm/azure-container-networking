@@ -48,9 +48,10 @@ type IptEntry struct {
 
 // IptablesManager stores iptables entries.
 type IptablesManager struct {
-	exec          utilexec.Interface
-	io            ioshim
-	OperationFlag string
+	exec                             utilexec.Interface
+	io                               ioshim
+	OperationFlag                    string
+	placeAzureChainBeforeKubeForward bool
 }
 
 func isDropsChain(chainName string) bool {
@@ -63,11 +64,12 @@ func isDropsChain(chainName string) bool {
 }
 
 // NewIptablesManager creates a new instance for IptablesManager object.
-func NewIptablesManager(exec utilexec.Interface, io ioshim) *IptablesManager {
+func NewIptablesManager(exec utilexec.Interface, io ioshim, placeAzureChainBeforeKubeForward bool) *IptablesManager {
 	iptMgr := &IptablesManager{
-		exec:          exec,
-		io:            io,
-		OperationFlag: "",
+		exec:                             exec,
+		io:                               io,
+		OperationFlag:                    "",
+		placeAzureChainBeforeKubeForward: placeAzureChainBeforeKubeForward,
 	}
 
 	return iptMgr
