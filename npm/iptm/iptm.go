@@ -100,6 +100,8 @@ func (iptMgr *IptablesManager) UninitNpmChains() error {
 		Specs: []string{
 			util.IptablesJumpFlag,
 			util.IptablesAzureChain,
+			util.IptablesModuleFlag,
+			util.IptablesCtstateModuleFlag,
 			util.IptablesCtstateFlag,
 			util.IptablesNewState,
 		},
@@ -205,6 +207,8 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		Specs: []string{
 			util.IptablesJumpFlag,
 			util.IptablesAzureChain,
+			util.IptablesModuleFlag,
+			util.IptablesCtstateModuleFlag,
 			util.IptablesCtstateFlag,
 			util.IptablesNewState,
 		},
