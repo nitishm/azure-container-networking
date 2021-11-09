@@ -8,15 +8,14 @@ import (
 	"github.com/Azure/azure-container-networking/npm/ipsm"
 	"github.com/Azure/azure-container-networking/npm/iptm"
 	"github.com/Azure/azure-container-networking/npm/metrics"
+	"github.com/Azure/azure-container-networking/npm/util"
 	"k8s.io/utils/exec"
 )
-
-const placeAzureChainAfterKubeServices = false
 
 func TestMain(m *testing.M) {
 	metrics.InitializeAll()
 	realexec := exec.New()
-	iptMgr := iptm.NewIptablesManager(realexec, iptm.NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := iptm.NewIptablesManager(realexec, iptm.NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 	err := iptMgr.UninitNpmChains()
 	if err != nil {
 		fmt.Println("uninitnpmchains failed with %w", err)

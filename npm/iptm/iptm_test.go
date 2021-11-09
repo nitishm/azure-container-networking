@@ -11,11 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	placeAzureChainAfterKubeServices = false
-	placeAzureChainFirst             = true
-)
-
 var (
 	initCalls = []testutils.TestCmd{
 		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
@@ -141,7 +136,7 @@ func TestInitNpmChains(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	err := iptMgr.InitNpmChains()
 	require.NoError(t, err)
@@ -152,7 +147,7 @@ func TestInitWithJumpToAzureAtTop(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainFirst)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainFirst)
 
 	err := iptMgr.InitNpmChains()
 	require.NoError(t, err)
@@ -163,7 +158,7 @@ func TestUninitNpmChains(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	if err := iptMgr.UninitNpmChains(); err != nil {
 		t.Errorf("TestUninitNpmChains @ iptMgr.UninitNpmChains")
@@ -177,7 +172,7 @@ func TestExists(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	iptMgr.OperationFlag = util.IptablesCheckFlag
 	entry := &IptEntry{
@@ -199,7 +194,7 @@ func TestAddChain(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	if err := iptMgr.addChain("TEST-CHAIN"); err != nil {
 		t.Errorf("TestAddChain failed @ iptMgr.addChain")
@@ -214,7 +209,7 @@ func TestDeleteChain(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	if err := iptMgr.addChain("TEST-CHAIN"); err != nil {
 		t.Errorf("TestDeleteChain failed @ iptMgr.addChain")
@@ -232,7 +227,7 @@ func TestAdd(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	execCount := resetPrometheusAndGetExecCount(t)
 	defer testPrometheusMetrics(t, 1, execCount+1)
@@ -280,7 +275,7 @@ func TestDelete(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	execCount := resetPrometheusAndGetExecCount(t)
 	defer testPrometheusMetrics(t, 0, execCount+1)
@@ -308,7 +303,7 @@ func TestRun(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	iptMgr.OperationFlag = util.IptablesChainCreationFlag
 	entry := &IptEntry{
@@ -327,7 +322,7 @@ func TestGetChainLineNumber(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
 
 	lineNum, err := iptMgr.getChainLineNumber(util.IptablesAzureChain, util.IptablesForwardChain)
 	require.NoError(t, err)

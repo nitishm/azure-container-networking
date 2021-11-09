@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/azure-container-networking/npm/ipsm"
 	"github.com/Azure/azure-container-networking/npm/metrics"
 	"github.com/Azure/azure-container-networking/npm/metrics/promutil"
+	"github.com/Azure/azure-container-networking/npm/util"
 	"github.com/stretchr/testify/require"
 
 	corev1 "k8s.io/api/core/v1"
@@ -53,7 +54,7 @@ func (f *netPolFixture) newNetPolController(stopCh chan struct{}) {
 	kubeclient := k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.kubeInformer = kubeinformers.NewSharedInformerFactory(kubeclient, noResyncPeriodFunc())
 
-	f.netPolController = NewNetworkPolicyController(f.kubeInformer.Networking().V1().NetworkPolicies(), f.ipsMgr, placeAzureChainAfterKubeServices)
+	f.netPolController = NewNetworkPolicyController(f.kubeInformer.Networking().V1().NetworkPolicies(), f.ipsMgr, util.PlaceAzureChainAfterKubeServices)
 
 	for _, netPol := range f.netPolLister {
 		f.kubeInformer.Networking().V1().NetworkPolicies().Informer().GetIndexer().Add(netPol)
