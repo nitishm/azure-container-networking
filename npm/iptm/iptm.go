@@ -48,10 +48,10 @@ type IptEntry struct {
 
 // IptablesManager stores iptables entries.
 type IptablesManager struct {
-	exec                             utilexec.Interface
-	io                               ioshim
-	OperationFlag                    string
-	placeAzureChainBeforeKubeForward bool
+	exec                       utilexec.Interface
+	io                         ioshim
+	OperationFlag              string
+	shouldPlaceAzureChainFirst bool
 }
 
 func isDropsChain(chainName string) bool {
@@ -64,12 +64,12 @@ func isDropsChain(chainName string) bool {
 }
 
 // NewIptablesManager creates a new instance for IptablesManager object.
-func NewIptablesManager(exec utilexec.Interface, io ioshim, placeAzureChainBeforeKubeForward bool) *IptablesManager {
+func NewIptablesManager(exec utilexec.Interface, io ioshim, shouldPlaceAzureChainFirst bool) *IptablesManager {
 	iptMgr := &IptablesManager{
-		exec:                             exec,
-		io:                               io,
-		OperationFlag:                    "",
-		placeAzureChainBeforeKubeForward: placeAzureChainBeforeKubeForward,
+		exec:                       exec,
+		io:                         io,
+		OperationFlag:              "",
+		shouldPlaceAzureChainFirst: shouldPlaceAzureChainFirst,
 	}
 
 	return iptMgr
@@ -208,7 +208,7 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 
 	index := 1 // insert the jump to AZURE-NPM at the top
 	kubeServicesLine := 0
-	if !iptMgr.placeAzureChainBeforeKubeForward {
+	if !iptMgr.shouldPlaceAzureChainFirst {
 		// retrieve KUBE-SERVICES index
 		var err error
 		kubeServicesLine, err = iptMgr.getChainLineNumber(util.IptablesKubeServicesChain, util.IptablesForwardChain)
@@ -236,7 +236,7 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		return nil
 	}
 
-	if iptMgr.placeAzureChainBeforeKubeForward {
+	if iptMgr.shouldPlaceAzureChainFirst {
 		return nil
 	}
 

@@ -43,7 +43,7 @@ type NetworkPolicyController struct {
 	iptMgr                 *iptm.IptablesManager
 }
 
-func NewNetworkPolicyController(npInformer networkinginformers.NetworkPolicyInformer, ipsMgr *ipsm.IpsetManager, placeAzureChainBeforeKubeForward bool) *NetworkPolicyController {
+func NewNetworkPolicyController(npInformer networkinginformers.NetworkPolicyInformer, ipsMgr *ipsm.IpsetManager, shouldPlaceAzureChainFirst bool) *NetworkPolicyController {
 	netPolController := &NetworkPolicyController{
 		netPolLister: npInformer.Lister(),
 		workqueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "NetworkPolicy"),
@@ -51,7 +51,7 @@ func NewNetworkPolicyController(npInformer networkinginformers.NetworkPolicyInfo
 		// ProcessedNpMap:         make(map[string]*networkingv1.NetworkPolicy),
 		isAzureNpmChainCreated: false,
 		ipsMgr:                 ipsMgr,
-		iptMgr:                 iptm.NewIptablesManager(exec.New(), iptm.NewIptOperationShim(), placeAzureChainBeforeKubeForward),
+		iptMgr:                 iptm.NewIptablesManager(exec.New(), iptm.NewIptOperationShim(), shouldPlaceAzureChainFirst),
 	}
 
 	npInformer.Informer().AddEventHandler(
