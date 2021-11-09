@@ -244,21 +244,21 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		return nil
 	}
 
-	if iptMgr.shouldPlaceAzureChainFirst {
-		return nil
-	}
-
 	npmChainLine, err := iptMgr.getChainLineNumber(util.IptablesAzureChain, util.IptablesForwardChain)
 	if err != nil {
 		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to get index of AZURE-NPM in FORWARD chain with error: %s", err.Error())
 		return err
 	}
 
-	// Kube-services line number is less than npm chain line number then all good
-	if kubeServicesLine < npmChainLine {
-		return nil
-	} else if kubeServicesLine <= 0 {
-		return nil
+	if iptMgr.shouldPlaceAzureChainFirst {
+		if npmChainLine == 1 {
+			return nil
+		}
+	} else {
+		// Kube-services line number is less than npm chain line number then all good
+		if kubeServicesLine < npmChainLine || kubeServicesLine <= 0 {
+			return nil
+		}
 	}
 
 	errCode := 0
@@ -271,8 +271,8 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		return err
 	}
 	iptMgr.OperationFlag = util.IptablesInsertionFlag
-	// Reduce index for deleted AZURE-NPM chain
-	if index > 1 {
+	if !iptMgr.shouldPlaceAzureChainFirst {
+		// Reduce index for deleted AZURE-NPM chain
 		index--
 	}
 	entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
