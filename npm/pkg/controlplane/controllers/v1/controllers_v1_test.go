@@ -11,10 +11,12 @@ import (
 	"k8s.io/utils/exec"
 )
 
+const placeAzureChainAfterKubeServices = false
+
 func TestMain(m *testing.M) {
 	metrics.InitializeAll()
 	realexec := exec.New()
-	iptMgr := iptm.NewIptablesManager(realexec, iptm.NewFakeIptOperationShim())
+	iptMgr := iptm.NewIptablesManager(realexec, iptm.NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 	err := iptMgr.UninitNpmChains()
 	if err != nil {
 		fmt.Println("uninitnpmchains failed with %w", err)

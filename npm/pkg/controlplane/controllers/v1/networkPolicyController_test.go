@@ -45,7 +45,6 @@ func newNetPolFixture(t *testing.T, utilexec exec.Interface) *netPolFixture {
 		netPolLister: []*networkingv1.NetworkPolicy{},
 		kubeobjects:  []runtime.Object{},
 		ipsMgr:       ipsm.NewIpsetManager(utilexec),
-		// iptMgr:                      iptm.NewIptablesManager(utilexec, iptm.NewFakeIptOperationShim()),
 	}
 	return f
 }
@@ -54,7 +53,7 @@ func (f *netPolFixture) newNetPolController(stopCh chan struct{}) {
 	kubeclient := k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.kubeInformer = kubeinformers.NewSharedInformerFactory(kubeclient, noResyncPeriodFunc())
 
-	f.netPolController = NewNetworkPolicyController(f.kubeInformer.Networking().V1().NetworkPolicies(), f.ipsMgr)
+	f.netPolController = NewNetworkPolicyController(f.kubeInformer.Networking().V1().NetworkPolicies(), f.ipsMgr, placeAzureChainAfterKubeServices)
 
 	for _, netPol := range f.netPolLister {
 		f.kubeInformer.Networking().V1().NetworkPolicies().Informer().GetIndexer().Add(netPol)

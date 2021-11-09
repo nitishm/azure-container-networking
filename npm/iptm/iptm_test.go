@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	placeAzureChainAfterKubeServices = false
+	placeAzureChainFirst             = true
+)
+
 var (
 	initCalls = []testutils.TestCmd{
 		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
@@ -25,8 +30,14 @@ var (
 		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-EGRESS-DROPS"}},
 		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
 
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM"}, ExitCode: 1},
-		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "1", "-j", "AZURE-NPM"}},
+		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL
+		{Cmd: []string{"grep", "KUBE-SERVICES"}, Stdout: "4  "},
+
+		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM"}},
+		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL
+		{Cmd: []string{"grep", "AZURE-NPM"}, Stdout: "4  "},
+		{Cmd: []string{"iptables", "-w", "60", "-D", "FORWARD", "-j", "AZURE-NPM"}},
+		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "3", "-j", "AZURE-NPM"}},
 
 		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-INGRESS"}}, // broken here
 		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-EGRESS"}},
@@ -81,6 +92,48 @@ var (
 		{Cmd: []string{"iptables", "-w", "60", "-X", "AZURE-NPM-TARGET-SETS"}},
 		{Cmd: []string{"iptables", "-w", "60", "-X", "AZURE-NPM-INRGESS-DROPS"}}, // can we delete this rule now?
 	}
+
+	initWithJumpToAzureAtTopCalls = []testutils.TestCmd{
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-ACCEPT"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-INGRESS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-EGRESS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-INGRESS-PORT"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-INGRESS-FROM"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-EGRESS-PORT"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-EGRESS-TO"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-INGRESS-DROPS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM-EGRESS-DROPS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+
+		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM"}, ExitCode: 1},
+		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "1", "-j", "AZURE-NPM"}},
+
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-INGRESS"}}, // broken here
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-EGRESS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-ACCEPT", "-m", "mark", "--mark", "0x3000", "-m", "comment", "--comment", "ACCEPT-on-INGRESS-and-EGRESS-mark-0x3000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-ACCEPT", "-m", "mark", "--mark", "0x2000", "-m", "comment", "--comment", "ACCEPT-on-INGRESS-mark-0x2000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-ACCEPT", "-m", "mark", "--mark", "0x1000", "-m", "comment", "--comment", "ACCEPT-on-EGRESS-mark-0x1000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT", "-m", "comment", "--comment", "ACCEPT-on-connection-state"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-ACCEPT", "-j", "MARK", "--set-mark", "0x0", "-m", "comment", "--comment", "Clear-AZURE-NPM-MARKS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-ACCEPT", "-j", "ACCEPT", "-m", "comment", "--comment", "ACCEPT-All-packets"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-INGRESS", "-j", "AZURE-NPM-INGRESS-PORT"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-INGRESS", "-j", "RETURN", "-m", "mark", "--mark", "0x2000", "-m", "comment", "--comment", "RETURN-on-INGRESS-mark-0x2000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-INGRESS", "-j", "AZURE-NPM-INGRESS-DROPS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-INGRESS-PORT", "-j", "RETURN", "-m", "mark", "--mark", "0x2000", "-m", "comment", "--comment", "RETURN-on-INGRESS-mark-0x2000"}},
+		///////////
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-INGRESS-PORT", "-j", "AZURE-NPM-INGRESS-FROM", "-m", "comment", "--comment", "ALL-JUMP-TO-AZURE-NPM-INGRESS-FROM"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS", "-j", "AZURE-NPM-EGRESS-PORT"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS", "-j", "RETURN", "-m", "mark", "--mark", "0x3000", "-m", "comment", "--comment", "RETURN-on-EGRESS-and-INGRESS-mark-0x3000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS", "-j", "RETURN", "-m", "mark", "--mark", "0x1000", "-m", "comment", "--comment", "RETURN-on-EGRESS-mark-0x1000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS", "-j", "AZURE-NPM-EGRESS-DROPS"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS-PORT", "-j", "RETURN", "-m", "mark", "--mark", "0x3000", "-m", "comment", "--comment", "RETURN-on-EGRESS-and-INGRESS-mark-0x3000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS-PORT", "-j", "RETURN", "-m", "mark", "--mark", "0x1000", "-m", "comment", "--comment", "RETURN-on-EGRESS-mark-0x1000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS-PORT", "-j", "AZURE-NPM-EGRESS-TO", "-m", "comment", "--comment", "ALL-JUMP-TO-AZURE-NPM-EGRESS-TO"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-INGRESS-DROPS", "-j", "RETURN", "-m", "mark", "--mark", "0x2000", "-m", "comment", "--comment", "RETURN-on-INGRESS-mark-0x2000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS-DROPS", "-j", "RETURN", "-m", "mark", "--mark", "0x3000", "-m", "comment", "--comment", "RETURN-on-EGRESS-and-INGRESS-mark-0x3000"}},
+		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM-EGRESS-DROPS", "-j", "RETURN", "-m", "mark", "--mark", "0x1000", "-m", "comment", "--comment", "RETURN-on-EGRESS-mark-0x1000"}},
+	}
 )
 
 func TestInitNpmChains(t *testing.T) {
@@ -88,7 +141,18 @@ func TestInitNpmChains(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
+
+	err := iptMgr.InitNpmChains()
+	require.NoError(t, err)
+}
+
+func TestInitWithJumpToAzureAtTop(t *testing.T) {
+	calls := initWithJumpToAzureAtTopCalls
+
+	fexec := testutils.GetFakeExecWithScripts(calls)
+	defer testutils.VerifyCalls(t, fexec, calls)
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainFirst)
 
 	err := iptMgr.InitNpmChains()
 	require.NoError(t, err)
@@ -99,7 +163,7 @@ func TestUninitNpmChains(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	if err := iptMgr.UninitNpmChains(); err != nil {
 		t.Errorf("TestUninitNpmChains @ iptMgr.UninitNpmChains")
@@ -113,7 +177,7 @@ func TestExists(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	iptMgr.OperationFlag = util.IptablesCheckFlag
 	entry := &IptEntry{
@@ -135,7 +199,7 @@ func TestAddChain(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	if err := iptMgr.addChain("TEST-CHAIN"); err != nil {
 		t.Errorf("TestAddChain failed @ iptMgr.addChain")
@@ -150,7 +214,7 @@ func TestDeleteChain(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	if err := iptMgr.addChain("TEST-CHAIN"); err != nil {
 		t.Errorf("TestDeleteChain failed @ iptMgr.addChain")
@@ -168,7 +232,7 @@ func TestAdd(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	execCount := resetPrometheusAndGetExecCount(t)
 	defer testPrometheusMetrics(t, 1, execCount+1)
@@ -216,7 +280,7 @@ func TestDelete(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	execCount := resetPrometheusAndGetExecCount(t)
 	defer testPrometheusMetrics(t, 0, execCount+1)
@@ -244,7 +308,7 @@ func TestRun(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	iptMgr.OperationFlag = util.IptablesChainCreationFlag
 	entry := &IptEntry{
@@ -263,7 +327,7 @@ func TestGetChainLineNumber(t *testing.T) {
 
 	fexec := testutils.GetFakeExecWithScripts(calls)
 	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim())
+	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), placeAzureChainAfterKubeServices)
 
 	lineNum, err := iptMgr.getChainLineNumber(util.IptablesAzureChain, util.IptablesForwardChain)
 	require.NoError(t, err)
