@@ -36,6 +36,14 @@ var IptablesAzureChainList = []string{
 	util.IptablesAzureEgressDropsChain,
 }
 
+var deprecatedJumpToAzureEntry = &IptEntry{
+	Chain: util.IptablesForwardChain,
+	Specs: []string{
+		util.IptablesJumpFlag,
+		util.IptablesAzureChain,
+	},
+}
+
 // IptEntry represents an iptables rule.
 type IptEntry struct {
 	Command               string
@@ -95,6 +103,13 @@ func (iptMgr *IptablesManager) InitNpmChains() error {
 // UninitNpmChains uninitializes Azure NPM chains in iptables.
 func (iptMgr *IptablesManager) UninitNpmChains() error {
 	// Remove AZURE-NPM chain from FORWARD chain.
+	iptMgr.OperationFlag = util.IptablesDeletionFlag
+	errCode, err := iptMgr.run(deprecatedJumpToAzureEntry)
+	if errCode != iptablesErrDoesNotExist && err != nil {
+		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to delete deprecated jump from FORWARD chain to AZURE-NPM")
+		return err
+	}
+
 	entry := &IptEntry{
 		Chain: util.IptablesForwardChain,
 		Specs: []string{
@@ -106,8 +121,7 @@ func (iptMgr *IptablesManager) UninitNpmChains() error {
 			util.IptablesNewState,
 		},
 	}
-	iptMgr.OperationFlag = util.IptablesDeletionFlag
-	errCode, err := iptMgr.run(entry)
+	errCode, err = iptMgr.run(entry)
 	if errCode != iptablesErrDoesNotExist && err != nil {
 		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to delete AZURE-NPM from Forward chain")
 		return err
