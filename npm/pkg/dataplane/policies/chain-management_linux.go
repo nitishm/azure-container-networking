@@ -19,8 +19,7 @@ const (
 	defaultlockWaitTimeInSeconds string = "60"
 	reconcileChainTimeInMinutes  int    = 5
 
-	doesNotExistErrorCode      int = 1 // Bad rule (does a matching rule exist in that chain?)
-	couldntLoadTargetErrorCode int = 2 // Couldn't load target `AZURE-NPM-EGRESS':No such file or directory
+	doesNotExistErrorCode int = 1 // Bad rule (does a matching rule exist in that chain?)
 
 	minLineNumberStringLength int = 3
 	minChainStringLength      int = 7
@@ -90,12 +89,12 @@ func (pMgr *PolicyManager) initializeNPMChains() error {
 // removeNPMChains removes the jump rule from FORWARD chain to AZURE-NPM chain
 // and flushes and deletes all NPM Chains.
 func (pMgr *PolicyManager) removeNPMChains() error {
-	deleteErrCode, deleteErr := pMgr.runIPTablesCommandAndIgnoreErrorCode(couldntLoadTargetErrorCode, util.IptablesDeletionFlag, jumpFromForwardToAzureChainArgs...)
+	deleteErrCode, deleteErr := pMgr.runIPTablesCommandAndIgnoreErrorCode(doesNotExistErrorCode, util.IptablesDeletionFlag, jumpFromForwardToAzureChainArgs...)
 	if deleteErr != nil {
-		baseErrString := "failed to delete jump from FORWARD chain to AZURE-NPM chain"
-		metrics.SendErrorLogAndMetric(util.IptmID, "Error: %s with exit code %d and error: %s", baseErrString, deleteErrCode, deleteErr.Error())
+		// this will always occur when dp.Reset() is called the first time since we'll get error code 2 ("Couldn't load target `AZURE-NPM':No such file or directory")
+		// TODO have a bool to represent if AZURE-NPM chain exists?
+		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to delete jump from FORWARD chain to AZURE-NPM chain with exit code %d and error: %s", deleteErrCode, deleteErr.Error())
 		// FIXME update ID
-		return npmerrors.SimpleErrorWrapper(baseErrString, deleteErr)
 	}
 
 	// flush all chains (will create any chain, including deprecated ones, if they don't exist)
