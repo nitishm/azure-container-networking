@@ -52,7 +52,7 @@ var (
 	memberSetDoesntExistDefinition = ioutil.NewErrorDefinition("Set to be added/deleted/tested as element does not exist")
 
 	// variables for parsing ipset save
-	hashedNamePattern  = fmt.Sprintf(`%s\d+`, azureNPMPrefix)
+	hashedNamePattern  = fmt.Sprintf(`%s\d+`, azureNPMPrefix) // match azure-npm-<numbers>
 	nameForCreateRegex = regexp.MustCompile(fmt.Sprintf("%s (%s) ", ipsetCreateString, hashedNamePattern))
 	nameForAddRegex    = regexp.MustCompile(fmt.Sprintf("%s (%s) ", ipsetAddString, hashedNamePattern))
 )
@@ -68,7 +68,9 @@ func (iMgr *IPSetManager) resetIPSets() error {
 }
 
 /*
-overall error handling for ipset restore file
+overall error handling for ipset restore file.
+ipset restore will apply all lines to the kernel before a failure, so when recovering from a line failure, we must skip the lines that were already applied.
+below, "set" refers to either hashset or list, except in the sections for adding to (hash)set and adding to list
 
 for flush/delete:
 - abort the flush and delete calls if flush doesn't work
@@ -78,11 +80,14 @@ for flush/delete:
 
 for create:
 - abort create and add/delete calls if create doesn't work
-  - checks if the set already exists, but performs the same handling for any error
+  - checks if the set/list already exists, but performs the same handling for any error
 
-for add:
-- skip the add if it fails, and mark it as a failure if its an add to a list (TODO)
-  - for lists, specifically checks if the member set can't be added to a list because it doesn't exist, but performs the same handling for any error
+for add to set:
+- skip add if it fails
+
+for add to list:
+- skip the add if it fails, and mark it as a failure (TODO)
+  - checks if the member set can't be added to a list because it doesn't exist, but performs the same handling for any error
 
 for delete:
 - skip the delete if it fails for any reason
@@ -94,38 +99,39 @@ overall format for ipset restore file:
 	[deletes and adds for sets already in the kernel] (in order of occurrence in save file, deletes first (in random order), then adds (in random order))
 	[adds for new sets] (random order for sets and members)
 
-example restore file (where every set in add/update cache should have ip 1.2.3.4 and 2.3.4.5):
--F set-to-delete2
--F set-to-delete3
--F set-to-delete1
--X set-to-delete2
--X set-to-delete3
--X set-to-delete1
--N new-set-2
--N set-in-kernel-2
--N set-in-kernel-1
--N new-set-1
--N new-set-3
--D set-in-kernel-1 8.8.8.8
--D set-in-kernel-1 9.9.9.9
--A set-in-kernel-1 2.3.4.5
--D set-in-kernel-2 3.3.3.3
--A set-in-kernel-2 2.3.4.5
--A set-in-kernel-2 1.2.3.4
--A new-set-2 1.2.3.4
--A new-set-2 2.3.4.5
--A new-set-1 2.3.4.5
--A new-set-1 1.2.3.4
--A new-set-3 1.2.3.4
--A new-set-3 2.3.4.5
+example where every set in add/update cache should have ip 1.2.3.4 and 2.3.4.5:
+	save file showing current kernel state:
+		create set-in-kernel-1 net:hash ...
+		add set-in-kernel-1 1.2.3.4
+		add set-in-kernel-1 8.8.8.8
+		add set-in-kernel-1 9.9.9.9
+		create set-in-kernel-2 net:hash ...
+		add set-in-kernel-1 3.3.3.3
 
-save file for example above:
-	create set-in-kernel-1 net:hash ...
-	add set-in-kernel-1 1.2.3.4
-	add set-in-kernel-1 8.8.8.8
-	add set-in-kernel-1 9.9.9.9
-	create set-in-kernel-2 net:hash ...
-	add set-in-kernel-1 3.3.3.3
+	restore file: [flag meanings: -F (flush), -X (destroy), -N (create), -D (delete), -A (add)]
+		-F set-to-delete2
+		-F set-to-delete3
+		-F set-to-delete1
+		-X set-to-delete2
+		-X set-to-delete3
+		-X set-to-delete1
+		-N new-set-2
+		-N set-in-kernel-2
+		-N set-in-kernel-1
+		-N new-set-1
+		-N new-set-3
+		-D set-in-kernel-1 8.8.8.8
+		-D set-in-kernel-1 9.9.9.9
+		-A set-in-kernel-1 2.3.4.5
+		-D set-in-kernel-2 3.3.3.3
+		-A set-in-kernel-2 2.3.4.5
+		-A set-in-kernel-2 1.2.3.4
+		-A new-set-2 1.2.3.4
+		-A new-set-2 2.3.4.5
+		-A new-set-1 2.3.4.5
+		-A new-set-1 1.2.3.4
+		-A new-set-3 1.2.3.4
+		-A new-set-3 2.3.4.5
 
 */
 
@@ -154,7 +160,6 @@ func (iMgr *IPSetManager) ipsetSave() ([]byte, error) {
 		return nil, npmerrors.SimpleErrorWrapper("failed to run ipset save", err)
 	}
 	if !gotMatches {
-		fmt.Println("here")
 		return nil, nil
 	}
 	return searchResults, nil
@@ -311,7 +316,7 @@ func nextCreateLine(originalReadIndex int, saveFile []byte) (createLine []byte, 
 }
 
 func haveTypeProblem(set *IPSet, restOfCreateLine []byte) bool {
-	// TODO check maxelem for hash sets? CIDR blocks have a different maxelem
+	// TODO check type based on maxelem for hash sets? CIDR blocks have a different maxelem
 	switch {
 	case hasPrefix(restOfCreateLine, ipsetSetListString):
 		if set.Kind != ListSet {
