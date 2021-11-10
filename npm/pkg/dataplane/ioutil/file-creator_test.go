@@ -1,7 +1,6 @@
 package ioutil
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/Azure/azure-container-networking/common"
@@ -227,8 +226,8 @@ func TestAlwaysMatchDefinition(t *testing.T) {
 
 func TestGetErrorLineNumber(t *testing.T) {
 	type args struct {
-		lineFailurePatterns []string
-		stdErr              string
+		lineFailurePattern string
+		stdErr             string
 	}
 
 	tests := []struct {
@@ -239,7 +238,7 @@ func TestGetErrorLineNumber(t *testing.T) {
 		{
 			"pattern that doesn't match",
 			args{
-				[]string{"abc"},
+				"abc",
 				"xyz",
 			},
 			-1,
@@ -247,7 +246,7 @@ func TestGetErrorLineNumber(t *testing.T) {
 		{
 			"matching pattern with no group",
 			args{
-				[]string{"abc"},
+				"abc",
 				"abc",
 			},
 			-1,
@@ -255,7 +254,7 @@ func TestGetErrorLineNumber(t *testing.T) {
 		{
 			"matching pattern with non-numeric group",
 			args{
-				[]string{"(abc)"},
+				"(abc)",
 				"abc",
 			},
 			-1,
@@ -263,7 +262,7 @@ func TestGetErrorLineNumber(t *testing.T) {
 		{
 			"stderr gives an out-of-bounds line number",
 			args{
-				[]string{"line (\\d+)"},
+				"line (\\d+)",
 				"line 777",
 			},
 			-1,
@@ -271,17 +270,7 @@ func TestGetErrorLineNumber(t *testing.T) {
 		{
 			"good line match",
 			args{
-				[]string{"line (\\d+)"},
-				`there was a failure
-				on line 11 where the failure happened
-				fix it please`,
-			},
-			11,
-		},
-		{
-			"good line match with other pattern that doesn't match",
-			args{
-				[]string{"abc", "line (\\d+)"},
+				"line (\\d+)",
 				`there was a failure
 				on line 11 where the failure happened
 				fix it please`,
@@ -292,15 +281,11 @@ func TestGetErrorLineNumber(t *testing.T) {
 
 	commandString := "test command"
 	for _, tt := range tests {
-		lineFailurePatterns := tt.args.lineFailurePatterns
+		lineFailureDefinition := NewErrorDefinition(tt.args.lineFailurePattern)
 		expectedLineNum := tt.expectedLineNum
 		stdErr := tt.args.stdErr
 		t.Run(tt.name, func(t *testing.T) {
-			creator := NewFileCreator(common.NewMockIOShim(nil), 2, lineFailurePatterns...)
-			for i := 0; i < 15; i++ {
-				creator.AddLine("", nil, fmt.Sprintf("line%d", i))
-			}
-			lineNum := creator.getErrorLineNumber(commandString, stdErr)
+			lineNum := lineFailureDefinition.getErrorLineNumber(stdErr, commandString, 15)
 			require.Equal(t, expectedLineNum, lineNum)
 		})
 	}

@@ -128,17 +128,10 @@ func (creator *FileCreator) RunCommandWithFile(cmd string, args ...string) error
 	fileString := creator.ToString()
 	wasFileAltered, err := creator.runCommandOnceWithFile(fileString, cmd, args...)
 	if err == nil {
-		// success
 		return nil
 	}
 	commandString := cmd + " " + strings.Join(args, " ")
-	for {
-		if creator.hasNoMoreRetries() {
-			errString := fmt.Sprintf("failed to run command [%s] with error: %v", commandString, err)
-			klog.Error(errString)
-			// TODO conditionally specify as retriable?
-			return npmerrors.Errorf(npmerrors.RunFileCreator, false, errString)
-		}
+	for !creator.hasNoMoreRetries() {
 		if wasFileAltered {
 			fileString = creator.ToString()
 			klog.Infof("rerunning command [%s] with new file:\n%s", commandString, fileString)
@@ -147,11 +140,14 @@ func (creator *FileCreator) RunCommandWithFile(cmd string, args ...string) error
 		}
 		wasFileAltered, err = creator.runCommandOnceWithFile(fileString, cmd, args...)
 		if err == nil {
-			// success
 			klog.Infof("successfully ran command [%s] on try number %d", commandString, creator.tryCount)
 			return nil
 		}
 	}
+	errString := fmt.Sprintf("failed to run command [%s] with error: %v", commandString, err)
+	klog.Error(errString)
+	// TODO conditionally specify as retriable?
+	return npmerrors.Errorf(npmerrors.RunFileCreator, false, errString)
 }
 
 // RunCommandOnceWithFile runs the command with the file once and increments the try count.
@@ -199,14 +195,17 @@ func (creator *FileCreator) runCommandOnceWithFile(fileString, cmd string, args 
 	}
 
 	// no file-level error, so handle line-level error if there is one
-	lineNum := creator.getErrorLineNumber(commandString, stdErr)
-	if lineNum == -1 {
-		klog.Infof("couldn't detect a line number error")
-		return false, fmt.Errorf("can't discern error: %w", err)
+	numLines := creator.numLines()
+	for _, lineFailureDefinition := range creator.lineFailureDefinitions {
+		lineNum := lineFailureDefinition.getErrorLineNumber(stdErr, commandString, numLines)
+		if lineNum != -1 {
+			klog.Infof("detected a line number error on line %d", lineNum)
+			wasFileAltered := creator.handleLineError(stdErr, commandString, lineNum)
+			return wasFileAltered, fmt.Errorf("tried to handle line number error: %w", err)
+		}
 	}
-	klog.Infof("detected a line number error on line %d", lineNum)
-	wasFileAltered := creator.handleLineError(lineNum, commandString, stdErr)
-	return wasFileAltered, fmt.Errorf("tried to handle line number error: %w", err)
+	klog.Infof("couldn't detect a line number error")
+	return false, fmt.Errorf("can't discern error: %w", err)
 }
 
 func (creator *FileCreator) hasNoMoreRetries() bool {
@@ -226,34 +225,35 @@ func (definition *ErrorDefinition) isMatch(stdErr string) bool {
 	return definition.matchPattern == anyMatchPattern || definition.re.MatchString(stdErr)
 }
 
+func (creator *FileCreator) numLines() int {
+	return len(creator.lines) - len(creator.lineNumbersToOmit)
+}
+
 // return -1 if there's a failure
-func (creator *FileCreator) getErrorLineNumber(commandString, stdErr string) int {
-	for _, definition := range creator.lineFailureDefinitions {
-		result := definition.re.FindStringSubmatch(stdErr)
-		if result == nil || len(result) < 2 {
-			klog.Infof("expected error with line number, but couldn't detect one with error regex pattern [%s] for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
-			continue
-		}
-		lineNumString := result[1]
-		lineNum, err := strconv.Atoi(lineNumString)
-		if err != nil {
-			klog.Infof("expected error with line number, but error regex pattern %s didn't produce a number for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
-			continue
-		}
-		if lineNum < 1 || lineNum > len(creator.lines) {
-			klog.Infof(
-				"expected error with line number, but error regex pattern %s produced an invalid line number %d for command [%s] with stdErr [%s]",
-				definition.matchPattern, lineNum, commandString, stdErr,
-			)
-			continue
-		}
-		return lineNum
+func (definition *ErrorDefinition) getErrorLineNumber(stdErr, commandString string, numLines int) int {
+	result := definition.re.FindStringSubmatch(stdErr)
+	if result == nil || len(result) < 2 {
+		klog.Infof("expected error with line number, but couldn't detect one with error regex pattern [%s] for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
+		return -1
 	}
-	return -1
+	lineNumString := result[1]
+	lineNum, err := strconv.Atoi(lineNumString)
+	if err != nil {
+		klog.Infof("expected error with line number, but error regex pattern %s didn't produce a number for command [%s] with stdErr [%s]", definition.matchPattern, commandString, stdErr)
+		return -1
+	}
+	if lineNum < 1 || lineNum > numLines {
+		klog.Infof(
+			"expected error with line number, but error regex pattern %s produced an invalid line number %d for command [%s] with stdErr [%s]",
+			definition.matchPattern, lineNum, commandString, stdErr,
+		)
+		return -1
+	}
+	return lineNum
 }
 
 // return whether the file was altered
-func (creator *FileCreator) handleLineError(lineNum int, commandString, stdErr string) bool {
+func (creator *FileCreator) handleLineError(stdErr, commandString string, lineNum int) bool {
 	lineNumIndex := lineNum - 1
 	line := creator.lines[lineNumIndex]
 	for _, errorHandler := range line.errorHandlers {
@@ -263,13 +263,13 @@ func (creator *FileCreator) handleLineError(lineNum int, commandString, stdErr s
 		switch errorHandler.Method {
 		case Continue:
 			klog.Errorf("continuing after line %d for command [%s]", lineNum, commandString)
-			for k := 0; k <= lineNumIndex; k++ {
-				creator.lineNumbersToOmit[k] = struct{}{}
+			for i := 0; i <= lineNumIndex; i++ {
+				creator.lineNumbersToOmit[i] = struct{}{}
 			}
 		case ContinueAndAbortSection:
 			klog.Errorf("continuing after line %d and aborting section associated with the line for command [%s]", lineNum, commandString)
-			for k := 0; k <= lineNumIndex; k++ {
-				creator.lineNumbersToOmit[k] = struct{}{}
+			for i := 0; i <= lineNumIndex; i++ {
+				creator.lineNumbersToOmit[i] = struct{}{}
 			}
 			section := creator.sections[line.sectionID]
 			for _, lineNum := range section.lineNums {
