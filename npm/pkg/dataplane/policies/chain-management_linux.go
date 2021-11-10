@@ -19,7 +19,8 @@ const (
 	defaultlockWaitTimeInSeconds string = "60"
 	reconcileChainTimeInMinutes  int    = 5
 
-	doesNotExistErrorCode int = 1 // Bad rule (does a matching rule exist in that chain?)
+	doesNotExistErrorCode      int = 1 // Bad rule (does a matching rule exist in that chain?)
+	couldntLoadTargetErrorCode int = 2 // Couldn't load target `AZURE-NPM-EGRESS':No such file or directory
 
 	minLineNumberStringLength int = 3
 	minChainStringLength      int = 7
@@ -89,12 +90,14 @@ func (pMgr *PolicyManager) initializeNPMChains() error {
 // removeNPMChains removes the jump rule from FORWARD chain to AZURE-NPM chain
 // and flushes and deletes all NPM Chains.
 func (pMgr *PolicyManager) removeNPMChains() error {
-	deleteErrCode, deleteErr := pMgr.runIPTablesCommandAndIgnoreErrorCode(doesNotExistErrorCode, util.IptablesDeletionFlag, jumpFromForwardToAzureChainArgs...)
-	if deleteErr != nil {
-		// this will always occur when dp.Reset() is called the first time since we'll get error code 2 ("Couldn't load target `AZURE-NPM':No such file or directory")
-		// TODO have a bool to represent if AZURE-NPM chain exists?
-		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to delete jump from FORWARD chain to AZURE-NPM chain with exit code %d and error: %s", deleteErrCode, deleteErr.Error())
+	deleteErrCode, deleteErr := pMgr.runIPTablesCommand(util.IptablesDeletionFlag, jumpFromForwardToAzureChainArgs...)
+	hadDeleteError := deleteErr != nil && deleteErrCode != couldntLoadTargetErrorCode
+	// TODO check rule doesn't exist error code instead. The first call of dp.Reset() we will have exit code 2 (couldn't load target) since AZURE-NPM won't exist
+	if hadDeleteError {
+		baseErrString := "failed to delete jump from FORWARD chain to AZURE-NPM chain"
+		metrics.SendErrorLogAndMetric(util.IptmID, "Error: %s with exit code %d and error: %s", baseErrString, deleteErrCode, deleteErr.Error())
 		// FIXME update ID
+		return npmerrors.SimpleErrorWrapper(baseErrString, deleteErr)
 	}
 
 	// flush all chains (will create any chain, including deprecated ones, if they don't exist)
@@ -144,10 +147,6 @@ func (pMgr *PolicyManager) reconcileChains(stopChannel <-chan struct{}) {
 
 // this function has a direct comparison in NPM v1 iptables manager (iptm.go)
 func (pMgr *PolicyManager) runIPTablesCommand(operationFlag string, args ...string) (int, error) {
-	return pMgr.runIPTablesCommandAndIgnoreErrorCode(-1, operationFlag, args...)
-}
-
-func (pMgr *PolicyManager) runIPTablesCommandAndIgnoreErrorCode(errCodeToIgnore int, operationFlag string, args ...string) (int, error) {
 	allArgs := []string{util.IptablesWaitFlag, defaultlockWaitTimeInSeconds, operationFlag}
 	allArgs = append(allArgs, args...)
 
@@ -163,11 +162,10 @@ func (pMgr *PolicyManager) runIPTablesCommandAndIgnoreErrorCode(errCodeToIgnore 
 		errCode := exitError.ExitStatus()
 		allArgsString := strings.Join(allArgs, " ")
 		msgStr := strings.TrimSuffix(string(output), "\n")
-		if errCode > 0 && errCode != errCodeToIgnore {
+		if errCode > 0 && operationFlag != util.IptablesCheckFlag {
 			metrics.SendErrorLogAndMetric(util.IptmID, "Error: There was an error running command: [%s %s] Stderr: [%v, %s]", util.Iptables, allArgsString, exitError, msgStr)
-			return errCode, npmerrors.SimpleErrorWrapper(fmt.Sprintf("failed to run iptables command [%s %s] Stderr: [%s]", util.Iptables, allArgsString, msgStr), exitError)
 		}
-		return errCode, nil
+		return errCode, npmerrors.SimpleErrorWrapper(fmt.Sprintf("failed to run iptables command [%s %s] Stderr: [%s]", util.Iptables, allArgsString, msgStr), exitError)
 	}
 	return 0, nil
 }
@@ -228,8 +226,9 @@ func (pMgr *PolicyManager) positionAzureChainJumpRule() error {
 	index := kubeServicesLine + 1
 
 	// TODO could call getChainLineNumber instead, and say it doesn't exist for lineNum == 0
-	jumpRuleErrCode, checkErr := pMgr.runIPTablesCommandAndIgnoreErrorCode(doesNotExistErrorCode, util.IptablesCheckFlag, jumpFromForwardToAzureChainArgs...)
-	if checkErr != nil {
+	jumpRuleErrCode, checkErr := pMgr.runIPTablesCommand(util.IptablesCheckFlag, jumpFromForwardToAzureChainArgs...)
+	hadCheckError := checkErr != nil && jumpRuleErrCode != doesNotExistErrorCode
+	if hadCheckError {
 		baseErrString := "failed to check if jump from FORWARD chain to AZURE-NPM chain exists"
 		metrics.SendErrorLogAndMetric(util.IptmID, "Error: %s: %s", baseErrString, checkErr.Error())
 		return npmerrors.SimpleErrorWrapper(baseErrString, checkErr)
