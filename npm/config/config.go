@@ -18,7 +18,7 @@ var DefaultConfig = Config{
 		EnablePprof:                true,
 		EnableHTTPDebugAPI:         true,
 		EnableV2Controllers:        false,
-		ShouldPlaceAzureChainFirst: true, // FIXME! default to false after validating
+		ShouldPlaceAzureChainFirst: false,
 	},
 }
 
