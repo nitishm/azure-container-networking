@@ -56,10 +56,10 @@ type IptEntry struct {
 
 // IptablesManager stores iptables entries.
 type IptablesManager struct {
-	exec                       utilexec.Interface
-	io                         ioshim
-	OperationFlag              string
-	shouldPlaceAzureChainFirst bool
+	exec                 utilexec.Interface
+	io                   ioshim
+	OperationFlag        string
+	placeAzureChainFirst bool
 }
 
 func isDropsChain(chainName string) bool {
@@ -72,12 +72,12 @@ func isDropsChain(chainName string) bool {
 }
 
 // NewIptablesManager creates a new instance for IptablesManager object.
-func NewIptablesManager(exec utilexec.Interface, io ioshim, shouldPlaceAzureChainFirst bool) *IptablesManager {
+func NewIptablesManager(exec utilexec.Interface, io ioshim, placeAzureChainFirst bool) *IptablesManager {
 	iptMgr := &IptablesManager{
-		exec:                       exec,
-		io:                         io,
-		OperationFlag:              "",
-		shouldPlaceAzureChainFirst: shouldPlaceAzureChainFirst,
+		exec:                 exec,
+		io:                   io,
+		OperationFlag:        "",
+		placeAzureChainFirst: placeAzureChainFirst,
 	}
 
 	return iptMgr
@@ -228,9 +228,9 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		},
 	}
 
-	index := 1 // insert the jump to AZURE-NPM at the top
-	kubeServicesLine := 0
-	if !iptMgr.shouldPlaceAzureChainFirst {
+	var index int
+	var kubeServicesLine int
+	if !iptMgr.placeAzureChainFirst {
 		// retrieve KUBE-SERVICES index
 		var err error
 		kubeServicesLine, err = iptMgr.getChainLineNumber(util.IptablesKubeServicesChain, util.IptablesForwardChain)
@@ -249,7 +249,9 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 	if !exists {
 		// position Azure-NPM chain after Kube-Forward and Kube-Service chains if it exists
 		iptMgr.OperationFlag = util.IptablesInsertionFlag
-		entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
+		if !iptMgr.placeAzureChainFirst {
+			entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
+		}
 		if _, err = iptMgr.run(entry); err != nil {
 			metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to add AZURE-NPM chain to FORWARD chain.")
 			return err
@@ -264,7 +266,7 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		return err
 	}
 
-	if iptMgr.shouldPlaceAzureChainFirst {
+	if iptMgr.placeAzureChainFirst {
 		if npmChainLine == 1 {
 			return nil
 		}
@@ -285,11 +287,11 @@ func (iptMgr *IptablesManager) checkAndAddForwardChain() error {
 		return err
 	}
 	iptMgr.OperationFlag = util.IptablesInsertionFlag
-	if !iptMgr.shouldPlaceAzureChainFirst {
+	if !iptMgr.placeAzureChainFirst {
 		// Reduce index for deleted AZURE-NPM chain
 		index--
+		entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
 	}
-	entry.Specs = append([]string{strconv.Itoa(index)}, entry.Specs...)
 	if errCode, err = iptMgr.run(entry); err != nil {
 		metrics.SendErrorLogAndMetric(util.IptmID, "Error: failed to add AZURE-NPM chain to FORWARD chain with error code %d.", errCode)
 		return err

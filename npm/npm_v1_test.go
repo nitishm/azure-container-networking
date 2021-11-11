@@ -81,7 +81,7 @@ func TestMarshalUnMarshalJSON(t *testing.T) {
 func TestMain(m *testing.M) {
 	metrics.InitializeAll()
 	exec := exec.New()
-	iptMgr := iptm.NewIptablesManager(exec, iptm.NewFakeIptOperationShim(), npmconfig.DefaultConfig.Toggles.ShouldPlaceAzureChainFirst)
+	iptMgr := iptm.NewIptablesManager(exec, iptm.NewFakeIptOperationShim(), npmconfig.DefaultConfig.Toggles.PlaceAzureChainFirst)
 	iptMgr.UninitNpmChains()
 
 	ipsMgr := ipsm.NewIpsetManager(exec)
