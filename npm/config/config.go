@@ -17,7 +17,7 @@ var DefaultConfig = Config{
 		EnablePrometheusMetrics: true,
 		EnablePprof:             true,
 		EnableHTTPDebugAPI:      true,
-		EnableV2Controllers:     true,
+		EnableV2Controllers:     false,
 	},
 }
 
