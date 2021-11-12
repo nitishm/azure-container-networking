@@ -245,9 +245,9 @@ func getPolicyNetworkRequestMarshal(setPolicySettings map[string]*hcn.SetPolicyS
 	}
 
 	idx := 0
-	policySettingsOrder := []hcn.SetPolicyType{SetPolicyTypeNestedIPSet, hcn.SetPolicyTypeIpSet}
+	policySettingsOrder := []hcn.SetPolicyType{hcn.SetPolicyTypeIpSet, SetPolicyTypeNestedIPSet}
 	if operation == hcn.RequestTypeRemove {
-		policySettingsOrder = []hcn.SetPolicyType{hcn.SetPolicyTypeIpSet, SetPolicyTypeNestedIPSet}
+		policySettingsOrder = []hcn.SetPolicyType{SetPolicyTypeNestedIPSet, hcn.SetPolicyTypeIpSet}
 	}
 	for _, policyType := range policySettingsOrder {
 		for setPol := range setPolicySettings {

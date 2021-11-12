@@ -39,7 +39,7 @@ var (
 				Direction: policies.Ingress,
 			},
 			{
-				PolicyID:  "azure-acl-234",
+				PolicyID:  "azure-acl-123",
 				Target:    policies.Allowed,
 				Direction: policies.Ingress,
 				SrcList: []policies.SetInfo{
@@ -62,7 +62,7 @@ var (
 func main() {
 	dp, err := dataplane.NewDataPlane(nodeName, common.NewIOShim())
 	panicOnError(err)
-	printAndWait()
+	printAndWait(true)
 
 	podMetadata := &dataplane.PodMetadata{
 		PodKey:   "a",
@@ -80,7 +80,7 @@ func main() {
 	panicOnError(dp.AddToSets([]*ipsets.IPSetMetadata{ipsets.TestNSSet.Metadata}, podMetadataB))
 	podMetadataC := &dataplane.PodMetadata{
 		PodKey:   "c",
-		PodIP:    "10.240.0.24",
+		PodIP:    "10.240.0.56",
 		NodeName: nodeName,
 	}
 	panicOnError(dp.AddToSets([]*ipsets.IPSetMetadata{ipsets.TestKeyPodSet.Metadata, ipsets.TestNSSet.Metadata}, podMetadataC))
@@ -90,7 +90,7 @@ func main() {
 
 	panicOnError(dp.ApplyDataPlane())
 
-	printAndWait()
+	printAndWait(true)
 
 	panicOnError(dp.AddToLists([]*ipsets.IPSetMetadata{ipsets.TestKeyNSList.Metadata, ipsets.TestKVNSList.Metadata}, []*ipsets.IPSetMetadata{ipsets.TestNSSet.Metadata}))
 
@@ -101,36 +101,55 @@ func main() {
 	dp.DeleteIPSet(ipsets.TestKVPodSet.Metadata)
 	panicOnError(dp.ApplyDataPlane())
 
-	printAndWait()
+	printAndWait(true)
 	panicOnError(dp.RemoveFromSets([]*ipsets.IPSetMetadata{ipsets.TestNSSet.Metadata}, podMetadata))
 
 	dp.DeleteIPSet(ipsets.TestNSSet.Metadata)
 	panicOnError(dp.ApplyDataPlane())
-	printAndWait()
+	printAndWait(true)
 
 	panicOnError(dp.AddPolicy(testNetPol))
+	printAndWait(true)
 
-	testPolicyManager()
+	panicOnError(dp.RemovePolicy(testNetPol.Name))
+	printAndWait(true)
+
+	panicOnError(dp.AddPolicy(testNetPol))
+	printAndWait(true)
+
+	podMetadataD := &dataplane.PodMetadata{
+		PodKey:   "d",
+		PodIP:    "10.240.0.38",
+		NodeName: nodeName,
+	}
+	panicOnError(dp.AddToSets([]*ipsets.IPSetMetadata{ipsets.TestKeyPodSet.Metadata, ipsets.TestNSSet.Metadata}, podMetadataD))
+	panicOnError(dp.ApplyDataPlane())
+	printAndWait(true)
+
+	panicOnError(dp.RemovePolicy(testNetPol.Name))
+
+	// testPolicyManager()
+
 }
 
 func testPolicyManager() {
 	pMgr := policies.NewPolicyManager(common.NewIOShim())
 
 	panicOnError(pMgr.Reset())
-	printAndWait()
+	printAndWait(false)
 
 	panicOnError(pMgr.AddPolicy(policies.TestNetworkPolicies[0], nil))
-	printAndWait()
+	printAndWait(false)
 
 	panicOnError(pMgr.AddPolicy(policies.TestNetworkPolicies[1], nil))
-	printAndWait()
+	printAndWait(false)
 
 	// remove something that doesn't exist
 	panicOnError(pMgr.RemovePolicy(policies.TestNetworkPolicies[2].Name, nil))
-	printAndWait()
+	printAndWait(false)
 
 	panicOnError(pMgr.AddPolicy(policies.TestNetworkPolicies[2], nil))
-	printAndWait()
+	printAndWait(false)
 
 	// remove something that exists
 	panicOnError(pMgr.RemovePolicy(policies.TestNetworkPolicies[1].Name, nil))
@@ -142,10 +161,12 @@ func panicOnError(err error) {
 	}
 }
 
-func printAndWait() {
+func printAndWait(wait bool) {
 	fmt.Printf("#####################\nCompleted running, please check relevant commands, script will resume in %d secs\n#############\n", MaxSleepTime)
-	for i := 0; i < MaxSleepTime; i++ {
-		fmt.Print(".")
-		time.Sleep(time.Second)
+	if wait {
+		for i := 0; i < MaxSleepTime; i++ {
+			fmt.Print(".")
+			time.Sleep(time.Second)
+		}
 	}
 }
