@@ -87,9 +87,12 @@ func (dp *DataPlane) InitializeDataPlane() error {
 	// Create Kube-All-NS IPSet
 	kubeAllSet := ipsets.NewIPSetMetadata(util.KubeAllNamespacesFlag, ipsets.KeyLabelOfNamespace)
 	dp.CreateIPSets([]*ipsets.IPSetMetadata{kubeAllSet})
+	klog.Infof("DEBUGME: initializing dp using OS specific")
 	if err := dp.initializeDataPlane(); err != nil {
 		return npmerrors.ErrorWrapper(npmerrors.InitializeDataPlane, false, "failed to initialize overall dataplane", err)
 	}
+	klog.Infof("DEBUGME: initialized dp using OS specific")
+
 	// TODO update when piped error is fixed in fexec
 	// if err := dp.policyMgr.Initialize(); err != nil {
 	// 	return npmerrors.ErrorWrapper(npmerrors.InitializeDataPlane, false, "failed to initialize policy dataplane", err)
@@ -100,9 +103,11 @@ func (dp *DataPlane) InitializeDataPlane() error {
 // ResetDataPlane helps in cleaning up dataplane sets and policies programmed
 // by NPM, retunring a clean slate
 func (dp *DataPlane) ResetDataPlane() error {
+	klog.Infof("DEBUGME: resetting ipsets")
 	if err := dp.ipsetMgr.ResetIPSets(); err != nil {
 		return npmerrors.ErrorWrapper(npmerrors.ResetDataPlane, false, "failed to reset ipsets dataplane", err)
 	}
+	klog.Infof("DEBUGME: reset ipsets")
 	// TODO update when piped error is fixed in fexec
 	// if err := dp.policyMgr.Reset(); err != nil {
 	// 	return npmerrors.ErrorWrapper(npmerrors.ResetDataPlane, false, "failed to reset policy dataplane", err)
@@ -112,22 +117,28 @@ func (dp *DataPlane) ResetDataPlane() error {
 
 // CreateIPSets takes in a set object and updates local cache with this set
 func (dp *DataPlane) CreateIPSets(setMetadata []*ipsets.IPSetMetadata) {
+	klog.Infof("DEBUGME: creating ipsets")
 	dp.ipsetMgr.CreateIPSets(setMetadata)
+	klog.Infof("DEBUGME: created ipsets")
 }
 
 // DeleteSet checks for members and references of the given "set" type ipset
 // if not used then will delete it from cache
 func (dp *DataPlane) DeleteIPSet(setMetadata *ipsets.IPSetMetadata) {
+	klog.Infof("DEBUGME: deleting ipsets")
 	dp.ipsetMgr.DeleteIPSet(setMetadata.GetPrefixName())
+	klog.Infof("DEBUGME: deleted ipsets")
 }
 
 // AddToSets takes in a list of IPSet names along with IP member
 // and then updates it local cache
 func (dp *DataPlane) AddToSets(setNames []*ipsets.IPSetMetadata, podMetadata *PodMetadata) error {
+	klog.Infof("DEBUGME: adding to ipsets")
 	err := dp.ipsetMgr.AddToSets(setNames, podMetadata.PodIP, podMetadata.PodKey)
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while adding to set: %w", err)
 	}
+	klog.Infof("DEBUGME: added to ipsets")
 	if dp.shouldUpdatePod() {
 		klog.Infof("[Dataplane] Updating Sets to Add for pod key %s", podMetadata.PodKey)
 		if _, ok := dp.updatePodCache[podMetadata.PodKey]; !ok {
@@ -144,10 +155,12 @@ func (dp *DataPlane) AddToSets(setNames []*ipsets.IPSetMetadata, podMetadata *Po
 // RemoveFromSets takes in list of setnames from which a given IP member should be
 // removed and will update the local cache
 func (dp *DataPlane) RemoveFromSets(setNames []*ipsets.IPSetMetadata, podMetadata *PodMetadata) error {
+	klog.Infof("DEBUGME: removing from ipsets")
 	err := dp.ipsetMgr.RemoveFromSets(setNames, podMetadata.PodIP, podMetadata.PodKey)
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while removing from set: %w", err)
 	}
+	klog.Infof("DEBUGME: removed from ipsets")
 
 	if dp.shouldUpdatePod() {
 		klog.Infof("[Dataplane] Updating Sets to Remove for pod key %s", podMetadata.PodKey)
@@ -165,20 +178,24 @@ func (dp *DataPlane) RemoveFromSets(setNames []*ipsets.IPSetMetadata, podMetadat
 // AddToLists takes a list name and list of sets which are to be added as members
 // to given list
 func (dp *DataPlane) AddToLists(listName, setNames []*ipsets.IPSetMetadata) error {
+	klog.Infof("DEBUGME: adding to lists")
 	err := dp.ipsetMgr.AddToLists(listName, setNames)
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while adding to list: %w", err)
 	}
+	klog.Infof("DEBUGME: added to lists")
 	return nil
 }
 
 // RemoveFromList takes a list name and list of sets which are to be removed as members
 // to given list
 func (dp *DataPlane) RemoveFromList(listName *ipsets.IPSetMetadata, setNames []*ipsets.IPSetMetadata) error {
+	klog.Infof("DEBUGME: removing from lists")
 	err := dp.ipsetMgr.RemoveFromList(listName, setNames)
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while removing from list: %w", err)
 	}
+	klog.Infof("DEBUGME: removed from lists")
 	return nil
 }
 
@@ -188,10 +205,12 @@ func (dp *DataPlane) RemoveFromList(listName *ipsets.IPSetMetadata, setNames []*
 // and accordingly makes changes in dataplane. This function helps emulate a single call to
 // dataplane instead of multiple ipset operations calls ipset operations calls to dataplane
 func (dp *DataPlane) ApplyDataPlane() error {
+	klog.Infof("DEBUGME: applying dp yep")
 	err := dp.ipsetMgr.ApplyIPSets()
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while applying IPSets: %w", err)
 	}
+	klog.Infof("DEBUGME: applied dp yep")
 
 	if dp.shouldUpdatePod() {
 		for podKey, pod := range dp.updatePodCache {
@@ -208,6 +227,7 @@ func (dp *DataPlane) ApplyDataPlane() error {
 // AddPolicy takes in a translated NPMNetworkPolicy object and applies on dataplane
 func (dp *DataPlane) AddPolicy(policy *policies.NPMNetworkPolicy) error {
 	klog.Infof("[DataPlane] Add Policy called for %s", policy.Name)
+	klog.Infof("DEBUGME: CREATING IPSETS AND REFERENCES1")
 	// Create and add references for Selector IPSets first
 	err := dp.createIPSetsAndReferences(policy.PodSelectorIPSets, policy.Name, ipsets.SelectorType)
 	if err != nil {
@@ -215,12 +235,14 @@ func (dp *DataPlane) AddPolicy(policy *policies.NPMNetworkPolicy) error {
 		return fmt.Errorf("[DataPlane] error while adding Selector IPSet references: %w", err)
 	}
 
+	klog.Infof("DEBUGME: CREATED IPSETS AND REFERENCES2")
 	// Create and add references for Rule IPSets
 	err = dp.createIPSetsAndReferences(policy.RuleIPSets, policy.Name, ipsets.NetPolType)
 	if err != nil {
 		klog.Infof("[DataPlane] error while adding Rule IPSet references: %s", err.Error())
 		return fmt.Errorf("[DataPlane] error while adding Rule IPSet references: %w", err)
 	}
+	klog.Infof("DEBUGME: CREATED IPSETS AND REFERENCES2")
 
 	err = dp.ApplyDataPlane()
 	if err != nil {
@@ -232,10 +254,12 @@ func (dp *DataPlane) AddPolicy(policy *policies.NPMNetworkPolicy) error {
 		return err
 	}
 
+	klog.Infof("DEBUGME: FINALLY ADDING POLICY")
 	err = dp.policyMgr.AddPolicy(policy, endpointList)
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while adding policy: %w", err)
 	}
+	klog.Infof("DEBUGME: FINALLY ADDED POLICY")
 	return nil
 }
 
@@ -249,22 +273,28 @@ func (dp *DataPlane) RemovePolicy(policyName string) error {
 		klog.Infof("[DataPlane] Policy %s is not found. Might been deleted already", policyName)
 		return nil
 	}
+	klog.Infof("DEBUGME: REMOVING POLICY")
 	// Use the endpoint list saved in cache for this network policy to remove
 	err := dp.policyMgr.RemovePolicy(policy.Name, nil)
 	if err != nil {
 		return fmt.Errorf("[DataPlane] error while removing policy: %w", err)
 	}
+	klog.Infof("DEBUGME: REMOVED POLICY")
+
+	klog.Infof("DEBUGME: REMOVING IPSETS AND REFERENCES1")
 	// Remove references for Rule IPSets first
 	err = dp.deleteIPSetsAndReferences(policy.RuleIPSets, policy.Name, ipsets.NetPolType)
 	if err != nil {
 		return err
 	}
 
+	klog.Infof("DEBUGME: REMOVING IPSETS AND REFERENCES2")
 	// Remove references for Selector IPSets
 	err = dp.deleteIPSetsAndReferences(policy.PodSelectorIPSets, policy.Name, ipsets.SelectorType)
 	if err != nil {
 		return err
 	}
+	klog.Infof("DEBUGME: REMOVED IPSETS AND REFERENCES2")
 
 	err = dp.ApplyDataPlane()
 	if err != nil {

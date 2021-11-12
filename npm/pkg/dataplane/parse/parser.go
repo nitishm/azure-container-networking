@@ -8,6 +8,7 @@ import (
 
 	NPMIPtable "github.com/Azure/azure-container-networking/npm/pkg/dataplane/iptables"
 	"github.com/Azure/azure-container-networking/npm/util"
+	"k8s.io/klog"
 )
 
 var (
@@ -108,6 +109,9 @@ func parseIptablesChainObject(tableName string, iptableBuffer []byte) map[string
 // Returns a slice of line starting from given read index and the next index to read from.
 func Line(readIndex int, iptableBuffer []byte) ([]byte, int) {
 	curReadIndex := readIndex // index of iptableBuffer to start reading from
+
+	klog.Infof("DEBUGME: parsing line")
+	defer klog.Infof("DEBUGME: parsed line")
 
 	// consume left spaces
 	for curReadIndex < len(iptableBuffer) {

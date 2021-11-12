@@ -34,6 +34,7 @@ func newStartNPMCmd() *cobra.Command {
 		Use:   "start",
 		Short: "Starts the Azure NPM process",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			klog.Infof("DEBUGME: pre config")
 			viper.AutomaticEnv() // read in environment variables that match
 			viper.SetDefault(npmconfig.ConfigEnvPath, npmconfig.GetConfigPath())
 			cfgFile := viper.GetString(npmconfig.ConfigEnvPath)
@@ -110,12 +111,15 @@ func start(config npmconfig.Config) error {
 
 	var dp dataplane.GenericDataplane
 	if config.Toggles.EnableV2Controllers {
+		klog.Infof("DEBUGME: getting a new dataplane")
 		dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim())
+		klog.Infof("DEBUGME: got a new dataplane")
 		if err != nil {
 			return fmt.Errorf("failed to create dataplane with error %w", err)
 		}
 	}
 	npMgr := npm.NewNetworkPolicyManager(config, factory, dp, exec.New(), version, k8sServerVersion)
+	klog.Infof("DEBUGME: got new npMgr")
 	err = metrics.CreateTelemetryHandle(version, npm.GetAIMetadata())
 	if err != nil {
 		klog.Infof("CreateTelemetryHandle failed with error %v.", err)
@@ -124,7 +128,9 @@ func start(config npmconfig.Config) error {
 
 	go restserver.NPMRestServerListenAndServe(config, npMgr)
 
+	klog.Infof("DEBUGME: starting npMgr")
 	if err = npMgr.Start(config, wait.NeverStop); err != nil {
+		klog.Infof("DEBUGME: starting npMgr failed!")
 		metrics.SendErrorLogAndMetric(util.NpmID, "Failed to start NPM due to %s", err)
 		panic(err.Error)
 	}
