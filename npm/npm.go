@@ -219,11 +219,11 @@ func (npMgr *NetworkPolicyManager) SendClusterMetrics() {
 // Start starts shared informers and waits for the shared informer cache to sync.
 func (npMgr *NetworkPolicyManager) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
 	// Do initialization of data plane before starting syncup of each controller to avoid heavy call to api-server
-	klog.Infof("DEBUGME: resetting dataplane")
-	if err := npMgr.netPolControllerV1.ResetDataPlane(); err != nil {
-		return fmt.Errorf("Failed to initialized data plane")
+	if !config.Toggles.EnableV2Controllers {
+		if err := npMgr.netPolControllerV1.ResetDataPlane(); err != nil {
+			return fmt.Errorf("Failed to initialized data plane")
+		}
 	}
-	klog.Infof("DEBUGME: reset dataplane")
 
 	// Starts all informers manufactured by npMgr's informerFactory.
 	npMgr.informerFactory.Start(stopCh)
