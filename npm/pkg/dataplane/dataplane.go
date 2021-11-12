@@ -94,9 +94,9 @@ func (dp *DataPlane) InitializeDataPlane() error {
 	klog.Infof("DEBUGME: initialized dp using OS specific")
 
 	// TODO update when piped error is fixed in fexec
-	// if err := dp.policyMgr.Initialize(); err != nil {
-	// 	return npmerrors.ErrorWrapper(npmerrors.InitializeDataPlane, false, "failed to initialize policy dataplane", err)
-	// }
+	if err := dp.policyMgr.Initialize(); err != nil {
+		return npmerrors.ErrorWrapper(npmerrors.InitializeDataPlane, false, "failed to initialize policy dataplane", err)
+	}
 	return nil
 }
 
