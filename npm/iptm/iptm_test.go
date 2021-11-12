@@ -105,7 +105,7 @@ var (
 		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
 
 		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, ExitCode: 1},
-		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "1", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
 
 		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-INGRESS"}}, // broken here
 		{Cmd: []string{"iptables", "-w", "60", "-C", "AZURE-NPM", "-j", "AZURE-NPM-EGRESS"}},
@@ -168,102 +168,106 @@ func TestInitWithJumpToAzureAtTop(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestReconcileMissingJumpToAzureAtTop(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, ExitCode: 1}, // "rule does not exist"
-		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "1", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+func TestCheckAndAddForwardChain(t *testing.T) {
+	type args struct {
+		calls                []testutils.TestCmd
+		placeAzureChainFirst bool
 	}
-	fexec := testutils.GetFakeExecWithScripts(calls)
-	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainFirst)
-
-	err := iptMgr.checkAndAddForwardChain()
-	require.NoError(t, err)
-}
-
-func TestReconcileMissingJumpToAzureAfterKubeServices(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"grep", "KUBE-SERVICES"}, ExitCode: 1},                                                   // THIS IS THE EXIT CODE FOR CHECK command below ("rule doesn't exist")
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "4", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "add missing jump to azure at top",
+			args: args{
+				calls: []testutils.TestCmd{
+					{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, ExitCode: 1}, // "rule does not exist"
+					{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+				},
+				placeAzureChainFirst: util.PlaceAzureChainFirst,
+			},
+		},
+		{
+			name: "add missing jump to azure after kube services",
+			args: args{
+				calls: []testutils.TestCmd{
+					{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"grep", "KUBE-SERVICES"}, ExitCode: 1},                                                   // THIS IS THE EXIT CODE FOR CHECK command below ("rule doesn't exist")
+					{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+					{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "4", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+				},
+				placeAzureChainFirst: util.PlaceAzureChainAfterKubeServices,
+			},
+		},
+		{
+			name: "jump to azure already at top",
+			args: args{
+				calls: []testutils.TestCmd{
+					{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "1  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"grep", "AZURE-NPM"}},
+				},
+				placeAzureChainFirst: util.PlaceAzureChainFirst,
+			},
+		},
+		{
+			name: "jump to azure already after kube services",
+			args: args{
+				calls: []testutils.TestCmd{
+					{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"grep", "KUBE-SERVICES"}},
+					{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, Stdout: "4  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}},
+					{Cmd: []string{"grep", "AZURE-NPM"}},
+				},
+				placeAzureChainFirst: util.PlaceAzureChainAfterKubeServices,
+			},
+		},
+		{
+			name: "move jump to azure to top",
+			args: args{
+				calls: []testutils.TestCmd{
+					{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "5  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"grep", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-w", "60", "-D", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+					{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+				},
+				placeAzureChainFirst: util.PlaceAzureChainFirst,
+			},
+		},
+		{
+			name: "move jump to azure after kube services",
+			args: args{
+				calls: []testutils.TestCmd{
+					{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"grep", "KUBE-SERVICES"}},
+					{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, Stdout: "2  "}, // THIS IS THE GREP CALL STDOUT
+					{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}},
+					{Cmd: []string{"grep", "AZURE-NPM"}},
+					{Cmd: []string{"iptables", "-w", "60", "-D", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+					{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "3", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
+				},
+				placeAzureChainFirst: util.PlaceAzureChainAfterKubeServices,
+			},
+		},
 	}
-	fexec := testutils.GetFakeExecWithScripts(calls)
-	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
-
-	err := iptMgr.checkAndAddForwardChain()
-	require.NoError(t, err)
-}
-
-func TestReconcileJumpToAzureAlreadyAtTop(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "1  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"grep", "AZURE-NPM"}},
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			fexec := testutils.GetFakeExecWithScripts(tt.args.calls)
+			defer testutils.VerifyCalls(t, fexec, tt.args.calls)
+			iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), tt.args.placeAzureChainFirst)
+			err := iptMgr.checkAndAddForwardChain()
+			require.NoError(t, err)
+		})
 	}
-	fexec := testutils.GetFakeExecWithScripts(calls)
-	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainFirst)
-
-	err := iptMgr.checkAndAddForwardChain()
-	require.NoError(t, err)
-}
-
-func TestReconcileJumpToAzureAlreadyAfterKubeServices(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"grep", "KUBE-SERVICES"}},
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, Stdout: "4  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}},
-		{Cmd: []string{"grep", "AZURE-NPM"}},
-	}
-	fexec := testutils.GetFakeExecWithScripts(calls)
-	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
-
-	err := iptMgr.checkAndAddForwardChain()
-	require.NoError(t, err)
-}
-
-func TestReconcileMoveJumpToAzureToTop(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "5  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"grep", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-w", "60", "-D", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "1", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-	}
-	fexec := testutils.GetFakeExecWithScripts(calls)
-	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainFirst)
-
-	err := iptMgr.checkAndAddForwardChain()
-	require.NoError(t, err)
-}
-
-func TestReconcileMoveJumpToAzureAfterKubeServices(t *testing.T) {
-	calls := []testutils.TestCmd{
-		{Cmd: []string{"iptables", "-w", "60", "-N", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}, Stdout: "3  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"grep", "KUBE-SERVICES"}},
-		{Cmd: []string{"iptables", "-w", "60", "-C", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}, Stdout: "2  "}, // THIS IS THE GREP CALL STDOUT
-		{Cmd: []string{"iptables", "-t", "filter", "-n", "--list", "FORWARD", "--line-numbers"}},
-		{Cmd: []string{"grep", "AZURE-NPM"}},
-		{Cmd: []string{"iptables", "-w", "60", "-D", "FORWARD", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-		{Cmd: []string{"iptables", "-w", "60", "-I", "FORWARD", "3", "-j", "AZURE-NPM", "-m", "conntrack", "--ctstate", "NEW"}},
-	}
-	fexec := testutils.GetFakeExecWithScripts(calls)
-	defer testutils.VerifyCalls(t, fexec, calls)
-	iptMgr := NewIptablesManager(fexec, NewFakeIptOperationShim(), util.PlaceAzureChainAfterKubeServices)
-
-	err := iptMgr.checkAndAddForwardChain()
-	require.NoError(t, err)
 }
 
 func TestExists(t *testing.T) {
