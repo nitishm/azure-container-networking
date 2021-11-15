@@ -141,13 +141,13 @@ func (iMgr *IPSetManager) applyIPSets() error {
 	if len(iMgr.toAddOrUpdateCache) > 0 {
 		saveFile, saveError = iMgr.ipsetSave()
 		if saveError != nil {
-			return fmt.Errorf("%w", saveError)
+			return npmerrors.SimpleErrorWrapper("ipset save failed when applying ipsets", saveError)
 		}
 	}
 	creator := iMgr.fileCreator(maxTryCount, saveFile)
 	restoreError := creator.RunCommandWithFile(ipsetCommand, ipsetRestoreFlag)
 	if restoreError != nil {
-		return fmt.Errorf("%w", restoreError)
+		return npmerrors.SimpleErrorWrapper("ipset restore failed when applying ipsets", restoreError)
 	}
 	return nil
 }
