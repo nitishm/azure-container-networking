@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package transport;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/Azure/azure-container-networking/npm/pkg/transport;transport";
+
+service GRPCDataplane {
+	rpc CreateIPSets(ListValue) returns (NilResponse);
+}
+
+message ListValue {
+	repeated google.protobuf.Struct values = 1;
+}
+
+message NilResponse {};
