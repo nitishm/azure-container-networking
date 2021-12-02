@@ -36,7 +36,7 @@ require (
 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56 // indirect
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0
-	google.golang.org/protobuf v1.26.0
+	google.golang.org/protobuf v1.27.1
 	k8s.io/api v0.22.1
 	k8s.io/apiextensions-apiserver v0.22.1
 	k8s.io/apimachinery v0.22.1
@@ -48,7 +48,6 @@ require (
 )
 
 require (
-	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/avast/retry-go/v3 v3.1.1
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
