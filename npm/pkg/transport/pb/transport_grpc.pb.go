@@ -14,88 +14,115 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// GRPCDataplaneClient is the client API for GRPCDataplane service.
+// DataplaneEventsClient is the client API for DataplaneEvents service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type GRPCDataplaneClient interface {
-	CreateIPSets(ctx context.Context, in *ListValue, opts ...grpc.CallOption) (*NilResponse, error)
+type DataplaneEventsClient interface {
+	Connect(ctx context.Context, in *DatapathPodMetadata, opts ...grpc.CallOption) (DataplaneEvents_ConnectClient, error)
 }
 
-type gRPCDataplaneClient struct {
+type dataplaneEventsClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewGRPCDataplaneClient(cc grpc.ClientConnInterface) GRPCDataplaneClient {
-	return &gRPCDataplaneClient{cc}
+func NewDataplaneEventsClient(cc grpc.ClientConnInterface) DataplaneEventsClient {
+	return &dataplaneEventsClient{cc}
 }
 
-func (c *gRPCDataplaneClient) CreateIPSets(ctx context.Context, in *ListValue, opts ...grpc.CallOption) (*NilResponse, error) {
-	out := new(NilResponse)
-	err := c.cc.Invoke(ctx, "/pb.GRPCDataplane/CreateIPSets", in, out, opts...)
+func (c *dataplaneEventsClient) Connect(ctx context.Context, in *DatapathPodMetadata, opts ...grpc.CallOption) (DataplaneEvents_ConnectClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DataplaneEvents_ServiceDesc.Streams[0], "/pb.DataplaneEvents/Connect", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
-}
-
-// GRPCDataplaneServer is the server API for GRPCDataplane service.
-// All implementations must embed UnimplementedGRPCDataplaneServer
-// for forward compatibility
-type GRPCDataplaneServer interface {
-	CreateIPSets(context.Context, *ListValue) (*NilResponse, error)
-	mustEmbedUnimplementedGRPCDataplaneServer()
-}
-
-// UnimplementedGRPCDataplaneServer must be embedded to have forward compatible implementations.
-type UnimplementedGRPCDataplaneServer struct {
-}
-
-func (UnimplementedGRPCDataplaneServer) CreateIPSets(context.Context, *ListValue) (*NilResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateIPSets not implemented")
-}
-func (UnimplementedGRPCDataplaneServer) mustEmbedUnimplementedGRPCDataplaneServer() {}
-
-// UnsafeGRPCDataplaneServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to GRPCDataplaneServer will
-// result in compilation errors.
-type UnsafeGRPCDataplaneServer interface {
-	mustEmbedUnimplementedGRPCDataplaneServer()
-}
-
-func RegisterGRPCDataplaneServer(s grpc.ServiceRegistrar, srv GRPCDataplaneServer) {
-	s.RegisterService(&GRPCDataplane_ServiceDesc, srv)
-}
-
-func _GRPCDataplane_CreateIPSets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListValue)
-	if err := dec(in); err != nil {
+	x := &dataplaneEventsConnectClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(GRPCDataplaneServer).CreateIPSets(ctx, in)
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
 	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pb.GRPCDataplane/CreateIPSets",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GRPCDataplaneServer).CreateIPSets(ctx, req.(*ListValue))
-	}
-	return interceptor(ctx, in, info, handler)
+	return x, nil
 }
 
-// GRPCDataplane_ServiceDesc is the grpc.ServiceDesc for GRPCDataplane service.
+type DataplaneEvents_ConnectClient interface {
+	Recv() (*Events, error)
+	grpc.ClientStream
+}
+
+type dataplaneEventsConnectClient struct {
+	grpc.ClientStream
+}
+
+func (x *dataplaneEventsConnectClient) Recv() (*Events, error) {
+	m := new(Events)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// DataplaneEventsServer is the server API for DataplaneEvents service.
+// All implementations must embed UnimplementedDataplaneEventsServer
+// for forward compatibility
+type DataplaneEventsServer interface {
+	Connect(*DatapathPodMetadata, DataplaneEvents_ConnectServer) error
+	mustEmbedUnimplementedDataplaneEventsServer()
+}
+
+// UnimplementedDataplaneEventsServer must be embedded to have forward compatible implementations.
+type UnimplementedDataplaneEventsServer struct {
+}
+
+func (UnimplementedDataplaneEventsServer) Connect(*DatapathPodMetadata, DataplaneEvents_ConnectServer) error {
+	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
+}
+func (UnimplementedDataplaneEventsServer) mustEmbedUnimplementedDataplaneEventsServer() {}
+
+// UnsafeDataplaneEventsServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DataplaneEventsServer will
+// result in compilation errors.
+type UnsafeDataplaneEventsServer interface {
+	mustEmbedUnimplementedDataplaneEventsServer()
+}
+
+func RegisterDataplaneEventsServer(s grpc.ServiceRegistrar, srv DataplaneEventsServer) {
+	s.RegisterService(&DataplaneEvents_ServiceDesc, srv)
+}
+
+func _DataplaneEvents_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(DatapathPodMetadata)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DataplaneEventsServer).Connect(m, &dataplaneEventsConnectServer{stream})
+}
+
+type DataplaneEvents_ConnectServer interface {
+	Send(*Events) error
+	grpc.ServerStream
+}
+
+type dataplaneEventsConnectServer struct {
+	grpc.ServerStream
+}
+
+func (x *dataplaneEventsConnectServer) Send(m *Events) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+// DataplaneEvents_ServiceDesc is the grpc.ServiceDesc for DataplaneEvents service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var GRPCDataplane_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.GRPCDataplane",
-	HandlerType: (*GRPCDataplaneServer)(nil),
-	Methods: []grpc.MethodDesc{
+var DataplaneEvents_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "pb.DataplaneEvents",
+	HandlerType: (*DataplaneEventsServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "CreateIPSets",
-			Handler:    _GRPCDataplane_CreateIPSets_Handler,
+			StreamName:    "Connect",
+			Handler:       _DataplaneEvents_Connect_Handler,
+			ServerStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "transport.proto",
 }

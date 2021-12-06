@@ -4,12 +4,30 @@ option go_package = "github.com/Azure/azure-container-networking/npm/pkg/transpo
 
 import "google/protobuf/struct.proto";
 
-service GRPCDataplane {
-	rpc CreateIPSets(ListValue) returns (NilResponse);
+service DataplaneEvents{
+	rpc Connect(DatapathPodMetadata) returns (stream Events);
 }
 
-message ListValue {
-	repeated google.protobuf.Struct values = 1;
+message DatapathPodMetadata {
+  string id = 1; // Daemonset Pod ID
 }
 
-message NilResponse {};
+message Events{
+  EventType type = 1;
+  enum EventType {
+    APPLY = 0;
+    REMOVE = 1;
+  }
+
+  ObjectType object = 2;
+  enum ObjectType {
+    IPSET = 0;
+    POLICY = 1;
+  }
+  
+  repeated Event event = 3;
+}
+
+message Event {
+	repeated google.protobuf.Struct data = 3;
+}

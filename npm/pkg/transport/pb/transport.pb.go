@@ -21,16 +21,108 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ListValue struct {
+type Events_EventType int32
+
+const (
+	Events_APPLY  Events_EventType = 0
+	Events_REMOVE Events_EventType = 1
+)
+
+// Enum value maps for Events_EventType.
+var (
+	Events_EventType_name = map[int32]string{
+		0: "APPLY",
+		1: "REMOVE",
+	}
+	Events_EventType_value = map[string]int32{
+		"APPLY":  0,
+		"REMOVE": 1,
+	}
+)
+
+func (x Events_EventType) Enum() *Events_EventType {
+	p := new(Events_EventType)
+	*p = x
+	return p
+}
+
+func (x Events_EventType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Events_EventType) Descriptor() protoreflect.EnumDescriptor {
+	return file_transport_proto_enumTypes[0].Descriptor()
+}
+
+func (Events_EventType) Type() protoreflect.EnumType {
+	return &file_transport_proto_enumTypes[0]
+}
+
+func (x Events_EventType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Events_EventType.Descriptor instead.
+func (Events_EventType) EnumDescriptor() ([]byte, []int) {
+	return file_transport_proto_rawDescGZIP(), []int{1, 0}
+}
+
+type Events_ObjectType int32
+
+const (
+	Events_IPSET  Events_ObjectType = 0
+	Events_POLICY Events_ObjectType = 1
+)
+
+// Enum value maps for Events_ObjectType.
+var (
+	Events_ObjectType_name = map[int32]string{
+		0: "IPSET",
+		1: "POLICY",
+	}
+	Events_ObjectType_value = map[string]int32{
+		"IPSET":  0,
+		"POLICY": 1,
+	}
+)
+
+func (x Events_ObjectType) Enum() *Events_ObjectType {
+	p := new(Events_ObjectType)
+	*p = x
+	return p
+}
+
+func (x Events_ObjectType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Events_ObjectType) Descriptor() protoreflect.EnumDescriptor {
+	return file_transport_proto_enumTypes[1].Descriptor()
+}
+
+func (Events_ObjectType) Type() protoreflect.EnumType {
+	return &file_transport_proto_enumTypes[1]
+}
+
+func (x Events_ObjectType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Events_ObjectType.Descriptor instead.
+func (Events_ObjectType) EnumDescriptor() ([]byte, []int) {
+	return file_transport_proto_rawDescGZIP(), []int{1, 1}
+}
+
+type DatapathPodMetadata struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Values []*structpb.Struct `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Daemonset Pod ID
 }
 
-func (x *ListValue) Reset() {
-	*x = ListValue{}
+func (x *DatapathPodMetadata) Reset() {
+	*x = DatapathPodMetadata{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_transport_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -38,13 +130,13 @@ func (x *ListValue) Reset() {
 	}
 }
 
-func (x *ListValue) String() string {
+func (x *DatapathPodMetadata) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListValue) ProtoMessage() {}
+func (*DatapathPodMetadata) ProtoMessage() {}
 
-func (x *ListValue) ProtoReflect() protoreflect.Message {
+func (x *DatapathPodMetadata) ProtoReflect() protoreflect.Message {
 	mi := &file_transport_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,26 +148,30 @@ func (x *ListValue) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListValue.ProtoReflect.Descriptor instead.
-func (*ListValue) Descriptor() ([]byte, []int) {
+// Deprecated: Use DatapathPodMetadata.ProtoReflect.Descriptor instead.
+func (*DatapathPodMetadata) Descriptor() ([]byte, []int) {
 	return file_transport_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ListValue) GetValues() []*structpb.Struct {
+func (x *DatapathPodMetadata) GetId() string {
 	if x != nil {
-		return x.Values
+		return x.Id
 	}
-	return nil
+	return ""
 }
 
-type NilResponse struct {
+type Events struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	Type   Events_EventType  `protobuf:"varint,1,opt,name=type,proto3,enum=pb.Events_EventType" json:"type,omitempty"`
+	Object Events_ObjectType `protobuf:"varint,2,opt,name=object,proto3,enum=pb.Events_ObjectType" json:"object,omitempty"`
+	Event  []*Event          `protobuf:"bytes,3,rep,name=event,proto3" json:"event,omitempty"`
 }
 
-func (x *NilResponse) Reset() {
-	*x = NilResponse{}
+func (x *Events) Reset() {
+	*x = Events{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_transport_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -83,13 +179,13 @@ func (x *NilResponse) Reset() {
 	}
 }
 
-func (x *NilResponse) String() string {
+func (x *Events) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NilResponse) ProtoMessage() {}
+func (*Events) ProtoMessage() {}
 
-func (x *NilResponse) ProtoReflect() protoreflect.Message {
+func (x *Events) ProtoReflect() protoreflect.Message {
 	mi := &file_transport_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -101,9 +197,77 @@ func (x *NilResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NilResponse.ProtoReflect.Descriptor instead.
-func (*NilResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use Events.ProtoReflect.Descriptor instead.
+func (*Events) Descriptor() ([]byte, []int) {
 	return file_transport_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Events) GetType() Events_EventType {
+	if x != nil {
+		return x.Type
+	}
+	return Events_APPLY
+}
+
+func (x *Events) GetObject() Events_ObjectType {
+	if x != nil {
+		return x.Object
+	}
+	return Events_IPSET
+}
+
+func (x *Events) GetEvent() []*Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+type Event struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Data []*structpb.Struct `protobuf:"bytes,3,rep,name=data,proto3" json:"data,omitempty"`
+}
+
+func (x *Event) Reset() {
+	*x = Event{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Event) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event) ProtoMessage() {}
+
+func (x *Event) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event.ProtoReflect.Descriptor instead.
+func (*Event) Descriptor() ([]byte, []int) {
+	return file_transport_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Event) GetData() []*structpb.Struct {
+	if x != nil {
+		return x.Data
+	}
+	return nil
 }
 
 var File_transport_proto protoreflect.FileDescriptor
@@ -112,20 +276,35 @@ var file_transport_proto_rawDesc = []byte{
 	0x0a, 0x0f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x12, 0x02, 0x70, 0x62, 0x1a, 0x1c, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72,
 	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x22, 0x3c, 0x0a, 0x09, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x61, 0x6c, 0x75, 0x65,
-	0x12, 0x2f, 0x0a, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x17, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x2e, 0x53, 0x74, 0x72, 0x75, 0x63, 0x74, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65,
-	0x73, 0x22, 0x0d, 0x0a, 0x0b, 0x4e, 0x69, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x32, 0x3f, 0x0a, 0x0d, 0x47, 0x52, 0x50, 0x43, 0x44, 0x61, 0x74, 0x61, 0x70, 0x6c, 0x61, 0x6e,
-	0x65, 0x12, 0x2e, 0x0a, 0x0c, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x49, 0x50, 0x53, 0x65, 0x74,
-	0x73, 0x12, 0x0d, 0x2e, 0x70, 0x62, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x61, 0x6c, 0x75, 0x65,
-	0x1a, 0x0f, 0x2e, 0x70, 0x62, 0x2e, 0x4e, 0x69, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x42, 0x45, 0x5a, 0x43, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
-	0x41, 0x7a, 0x75, 0x72, 0x65, 0x2f, 0x61, 0x7a, 0x75, 0x72, 0x65, 0x2d, 0x63, 0x6f, 0x6e, 0x74,
-	0x61, 0x69, 0x6e, 0x65, 0x72, 0x2d, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x69, 0x6e, 0x67,
-	0x2f, 0x6e, 0x70, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f,
-	0x72, 0x74, 0x2f, 0x70, 0x62, 0x3b, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x74, 0x6f, 0x22, 0x25, 0x0a, 0x13, 0x44, 0x61, 0x74, 0x61, 0x70, 0x61, 0x74, 0x68, 0x50,
+	0x6f, 0x64, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0xcb, 0x01, 0x0a, 0x06, 0x45,
+	0x76, 0x65, 0x6e, 0x74, 0x73, 0x12, 0x28, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0e, 0x32, 0x14, 0x2e, 0x70, 0x62, 0x2e, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x73, 0x2e,
+	0x45, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12,
+	0x2d, 0x0a, 0x06, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x15, 0x2e, 0x70, 0x62, 0x2e, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x4f, 0x62, 0x6a, 0x65,
+	0x63, 0x74, 0x54, 0x79, 0x70, 0x65, 0x52, 0x06, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x12, 0x1f,
+	0x0a, 0x05, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x09, 0x2e,
+	0x70, 0x62, 0x2e, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x52, 0x05, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x22,
+	0x22, 0x0a, 0x09, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x12, 0x09, 0x0a, 0x05,
+	0x41, 0x50, 0x50, 0x4c, 0x59, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06, 0x52, 0x45, 0x4d, 0x4f, 0x56,
+	0x45, 0x10, 0x01, 0x22, 0x23, 0x0a, 0x0a, 0x4f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x54, 0x79, 0x70,
+	0x65, 0x12, 0x09, 0x0a, 0x05, 0x49, 0x50, 0x53, 0x45, 0x54, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06,
+	0x50, 0x4f, 0x4c, 0x49, 0x43, 0x59, 0x10, 0x01, 0x22, 0x34, 0x0a, 0x05, 0x45, 0x76, 0x65, 0x6e,
+	0x74, 0x12, 0x2b, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x17, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x2e, 0x53, 0x74, 0x72, 0x75, 0x63, 0x74, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x32, 0x43,
+	0x0a, 0x0f, 0x44, 0x61, 0x74, 0x61, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x45, 0x76, 0x65, 0x6e, 0x74,
+	0x73, 0x12, 0x30, 0x0a, 0x07, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x12, 0x17, 0x2e, 0x70,
+	0x62, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x70, 0x61, 0x74, 0x68, 0x50, 0x6f, 0x64, 0x4d, 0x65, 0x74,
+	0x61, 0x64, 0x61, 0x74, 0x61, 0x1a, 0x0a, 0x2e, 0x70, 0x62, 0x2e, 0x45, 0x76, 0x65, 0x6e, 0x74,
+	0x73, 0x30, 0x01, 0x42, 0x45, 0x5a, 0x43, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
+	0x6d, 0x2f, 0x41, 0x7a, 0x75, 0x72, 0x65, 0x2f, 0x61, 0x7a, 0x75, 0x72, 0x65, 0x2d, 0x63, 0x6f,
+	0x6e, 0x74, 0x61, 0x69, 0x6e, 0x65, 0x72, 0x2d, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x69,
+	0x6e, 0x67, 0x2f, 0x6e, 0x70, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x74, 0x72, 0x61, 0x6e, 0x73,
+	0x70, 0x6f, 0x72, 0x74, 0x2f, 0x70, 0x62, 0x3b, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -140,21 +319,28 @@ func file_transport_proto_rawDescGZIP() []byte {
 	return file_transport_proto_rawDescData
 }
 
-var file_transport_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_transport_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_transport_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_transport_proto_goTypes = []interface{}{
-	(*ListValue)(nil),       // 0: pb.ListValue
-	(*NilResponse)(nil),     // 1: pb.NilResponse
-	(*structpb.Struct)(nil), // 2: google.protobuf.Struct
+	(Events_EventType)(0),       // 0: pb.Events.EventType
+	(Events_ObjectType)(0),      // 1: pb.Events.ObjectType
+	(*DatapathPodMetadata)(nil), // 2: pb.DatapathPodMetadata
+	(*Events)(nil),              // 3: pb.Events
+	(*Event)(nil),               // 4: pb.Event
+	(*structpb.Struct)(nil),     // 5: google.protobuf.Struct
 }
 var file_transport_proto_depIdxs = []int32{
-	2, // 0: pb.ListValue.values:type_name -> google.protobuf.Struct
-	0, // 1: pb.GRPCDataplane.CreateIPSets:input_type -> pb.ListValue
-	1, // 2: pb.GRPCDataplane.CreateIPSets:output_type -> pb.NilResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 0: pb.Events.type:type_name -> pb.Events.EventType
+	1, // 1: pb.Events.object:type_name -> pb.Events.ObjectType
+	4, // 2: pb.Events.event:type_name -> pb.Event
+	5, // 3: pb.Event.data:type_name -> google.protobuf.Struct
+	2, // 4: pb.DataplaneEvents.Connect:input_type -> pb.DatapathPodMetadata
+	3, // 5: pb.DataplaneEvents.Connect:output_type -> pb.Events
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_transport_proto_init() }
@@ -164,7 +350,7 @@ func file_transport_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_transport_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListValue); i {
+			switch v := v.(*DatapathPodMetadata); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -176,7 +362,19 @@ func file_transport_proto_init() {
 			}
 		}
 		file_transport_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*NilResponse); i {
+			switch v := v.(*Events); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Event); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -193,13 +391,14 @@ func file_transport_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_transport_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_transport_proto_goTypes,
 		DependencyIndexes: file_transport_proto_depIdxs,
+		EnumInfos:         file_transport_proto_enumTypes,
 		MessageInfos:      file_transport_proto_msgTypes,
 	}.Build()
 	File_transport_proto = out.File
