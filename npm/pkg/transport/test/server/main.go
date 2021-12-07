@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
+	"flag"
 	"fmt"
-	"io"
-	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -18,75 +16,25 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-const (
-	port = 8080
-)
+var port int
 
 func main() {
+	flag.IntVar(&port, "port", 8080, "Server listening port")
+	flag.Parse()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	done := make(chan struct{}, 1)
+	done := make(chan struct{})
 
 	go func() {
-		s := <-sigs
-		log.Printf("received signal: %s", s)
+		<-sigs
 		done <- struct{}{}
 	}()
 
-	go func() {
-		// We do not have a signal handler here
-		// TODO: Break this out into two programs rather than having both run in the same thread/process
-		if err := startServer(); err != nil {
-			log.Fatalf("failed to start server: %v", err)
-		}
-		done <- struct{}{}
-	}()
+	go startServer(done, port)
 
-	// Client code
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-
-	cc, err := grpc.DialContext(ctx, "localhost:8080", grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("failed to dial: %v", err)
-	}
-
-	client := transportpb.NewDataplaneEventsClient(cc)
-	clientID := "test-client"
-	stream, err := client.Connect(
-		context.Background(),
-		&transportpb.DatapathPodMetadata{Id: clientID})
-	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
-	}
-
-	for {
-		select {
-		case <-done:
-			cancel()
-			os.Exit(1)
-		default:
-			ev, err := stream.Recv()
-			if err != nil || err == io.EOF {
-				log.Fatalf("failed to receive: %v", err)
-			}
-
-			fmt.Printf(
-				"[Client ID: %s] Received event type %s object type %s: \n",
-				clientID,
-				ev.GetType(),
-				ev.GetObject(),
-			)
-
-			for _, e := range ev.GetEvent() {
-				for _, d := range e.GetData() {
-					eventAsMap := d.AsMap()
-					fmt.Printf("%s: %s\n", eventAsMap["Type"], eventAsMap["Payload"])
-				}
-			}
-		}
-	}
+	<-done
 }
 
 type DataplaneEventsServer struct {
@@ -94,6 +42,9 @@ type DataplaneEventsServer struct {
 }
 
 func (DataplaneEventsServer) Connect(m *transportpb.DatapathPodMetadata, stream transportpb.DataplaneEvents_ConnectServer) error {
+	fmt.Printf("Received a Connect request from Client ID [%s]\n", m.GetId())
+	fmt.Println("Sending stream of events")
+
 	for {
 		err := stream.SendMsg(&transportpb.Events{
 			Type:   transportpb.Events_APPLY,
@@ -109,11 +60,16 @@ func (DataplaneEventsServer) Connect(m *transportpb.DatapathPodMetadata, stream 
 	}
 }
 
-func startServer() error {
+func startServer(done chan struct{}, port int) {
+	fmt.Println("Starting server")
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		fmt.Printf("failed to listen on port %dwith err : %v", port, err)
+		done <- struct{}{}
 	}
+
+	fmt.Printf("Listening on port %d\n", port)
+
 	// Start gRPC Server in background
 	var opts []grpc.ServerOption = []grpc.ServerOption{
 		grpc.MaxConcurrentStreams(100),
@@ -128,9 +84,9 @@ func startServer() error {
 	)
 
 	if err := server.Serve(lis); err != nil {
-		return fmt.Errorf("failed to serve: %w", err)
+		fmt.Printf("failed to listen on port 8080 with err : %v", err)
+		done <- struct{}{}
 	}
-	return nil
 }
 
 func testData() []*structpb.Struct {
