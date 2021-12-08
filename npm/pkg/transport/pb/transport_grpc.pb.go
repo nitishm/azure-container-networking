@@ -124,5 +124,5 @@ var DataplaneEvents_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "transport.proto",
+	Metadata: "pb/transport.proto",
 }

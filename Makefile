@@ -426,7 +426,7 @@ $(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod
 controller-gen: $(CONTROLLER_GEN) ## Build controller-gen
 
 protoc: 
-	./scripts/install-protoc.sh
+	source ${REPO_ROOT}/scripts/install-protoc.sh
 
 $(GOCOV): $(TOOLS_DIR)/go.mod
 	cd $(TOOLS_DIR); go mod download; go build -tags=tools -o bin/gocov github.com/axw/gocov/gocov
