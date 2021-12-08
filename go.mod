@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Microsoft/go-winio v0.4.17
 	github.com/Microsoft/hcsshim v0.8.23
-	github.com/billgraziano/dpapi v0.3.0
+	github.com/billgraziano/dpapi v0.4.0
 	github.com/containernetworking/cni v0.8.1
 	github.com/docker/docker v20.10.8+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
