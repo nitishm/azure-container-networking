@@ -11,7 +11,7 @@ service DataplaneEvents{
 
 // DatapathPodMetadata is the metadata for a datapath pod
 message DatapathPodMetadata {
-  string id = 1; // Daemonset Pod ID
+  string pod = 1; // Daemonset Pod ID
   string node = 2; // Node name
 }
 
