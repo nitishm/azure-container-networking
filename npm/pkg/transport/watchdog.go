@@ -2,19 +2,25 @@ package transport
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc/stats"
 )
+
+type deregistrationEvent struct {
+	remoteAddr string
+	timestamp  int64
+}
 
 // Watchdog is a stats handler that watches for connection and RPC events.
 // It implements the gRPC stats.Handler interface.
 type Watchdog struct {
 	// deregCh is used by the Watchdog to signal the Watchdog to deregister a remote address/client
-	deregCh chan<- string
+	deregCh chan<- deregistrationEvent
 }
 
 // NewWatchdog creates a new Watchdog instance
-func NewWatchdog(deregCh chan<- string) stats.Handler {
+func NewWatchdog(deregCh chan<- deregistrationEvent) stats.Handler {
 	return &Watchdog{
 		deregCh: deregCh,
 	}
@@ -30,15 +36,17 @@ func (h *Watchdog) HandleRPC(ctx context.Context, _ stats.RPCStats) {
 
 func (h *Watchdog) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
 	// Add the remote address to the context so that we can use it during a connection end event
-	return context.WithValue(ctx, remoteAddrContextKey, info.RemoteAddr.String())
+	return context.WithValue(ctx, remoteAddrContextKey, info.RemoteAddr.String()) //nolint:staticcheck //ignore staticcheck error
 }
 
 // HandleConn processes the Conn stats.
 func (h *Watchdog) HandleConn(c context.Context, s stats.ConnStats) {
-	switch s.(type) {
-	// Watch for connection end events
-	case *stats.ConnEnd:
+	if _, ok := s.(*stats.ConnEnd); ok {
+		// Watch for connection end events
 		remoteAddr := c.Value(remoteAddrContextKey).(string)
-		h.deregCh <- remoteAddr
+		h.deregCh <- deregistrationEvent{
+			remoteAddr: remoteAddr,
+			timestamp:  time.Now().Unix(),
+		}
 	}
 }

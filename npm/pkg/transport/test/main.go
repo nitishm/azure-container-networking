@@ -9,6 +9,10 @@ import (
 	"github.com/Azure/azure-container-networking/npm/pkg/transport"
 )
 
+const (
+	port = 8080
+)
+
 func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -21,7 +25,7 @@ func main() {
 		cancel()
 	}()
 
-	m := transport.NewManager(8080)
+	m := transport.NewManager(port)
 
 	m.Start(ctx)
 }

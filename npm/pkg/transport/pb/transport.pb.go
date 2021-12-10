@@ -70,7 +70,7 @@ func (Events_EventType) EnumDescriptor() ([]byte, []int) {
 	return file_pb_transport_proto_rawDescGZIP(), []int{1, 0}
 }
 
-// Supported objects are IPSet rules and NetworkPolicy objects.
+// Supported objects are IPSet and NetworkPolicy objects.
 type Events_ObjectType int32
 
 const (
@@ -247,7 +247,7 @@ type Event struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Data can container one or more instances of IPSet or NetworkPolicy
+	// Data can contain one or more instances of IPSet or NetworkPolicy
 	// objects.
 	Data []*structpb.Struct `protobuf:"bytes,3,rep,name=data,proto3" json:"data,omitempty"`
 }

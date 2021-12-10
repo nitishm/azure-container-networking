@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"time"
+
 	"github.com/Azure/azure-container-networking/npm/pkg/transport/pb"
 	"google.golang.org/grpc/peer"
 )
@@ -9,7 +11,8 @@ import (
 type clientStreamConnection struct {
 	stream pb.DataplaneEvents_ConnectServer
 	*pb.DatapathPodMetadata
-	addr string
+	addr      string
+	timestamp int64
 }
 
 // Addr returns the address of the client
@@ -41,6 +44,7 @@ func (d *DataplaneEventsServer) Connect(m *pb.DatapathPodMetadata, stream pb.Dat
 		DatapathPodMetadata: m,
 		stream:              stream,
 		addr:                p.Addr.String(),
+		timestamp:           time.Now().Unix(),
 	}
 
 	// Add stream to the list of active streams

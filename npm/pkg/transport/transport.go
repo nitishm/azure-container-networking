@@ -30,7 +30,7 @@ type Manager struct {
 	regCh chan clientStreamConnection
 
 	// deregCh is the deregistration channel
-	deregCh chan string
+	deregCh chan deregistrationEvent
 
 	// errCh is the error channel
 	errCh chan error
@@ -42,10 +42,9 @@ func NewManager(port int) *Manager {
 	regCh := make(chan clientStreamConnection, grpcMaxConcurrentStreams)
 
 	// Create a deregistration channel
-	deregCh := make(chan string)
+	deregCh := make(chan deregistrationEvent, grpcMaxConcurrentStreams)
 
 	return &Manager{
-		// Broadcaster: gbc.NewBroadcaster(concurrentInputRegistrations),
 		Server:        NewServer(regCh),
 		Watchdog:      NewWatchdog(deregCh),
 		Registrations: make(map[string]clientStreamConnection),
@@ -69,9 +68,15 @@ func (m *Manager) start(ctx context.Context) {
 		case client := <-m.regCh:
 			klog.Infof("Registering remote client %s", client)
 			m.Registrations[client.String()] = client
-		case client := <-m.deregCh:
-			klog.Infof("Degregistering remote client %s", client)
-			delete(m.Registrations, client)
+		case ev := <-m.deregCh:
+			klog.Infof("Degregistering remote client %s", ev.remoteAddr)
+			if v, ok := m.Registrations[ev.remoteAddr]; ok {
+				if v.timestamp <= ev.timestamp {
+					delete(m.Registrations, ev.remoteAddr)
+				} else {
+					klog.Info("Ignoring stale deregistration event")
+				}
+			}
 		case <-ctx.Done():
 			klog.Info("Stopping transport manager")
 			return

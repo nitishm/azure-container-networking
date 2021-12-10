@@ -2,6 +2,5 @@ package transport
 
 import "errors"
 
-var (
-	ErrNoPeer = errors.New("no peer found in gRPC context")
-)
+// ErrNoPeer is returned when no peer was found in the gRPC context.
+var ErrNoPeer = errors.New("no peer found in gRPC context")

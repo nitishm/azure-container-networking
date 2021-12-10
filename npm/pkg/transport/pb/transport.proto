@@ -29,7 +29,7 @@ message Events{
   }
 
   ObjectType object = 2;
-  // Supported objects are IPSet rules and NetworkPolicy objects.
+  // Supported objects are IPSet and NetworkPolicy objects.
   enum ObjectType {
     IPSET = 0;
     POLICY = 1;
@@ -41,7 +41,7 @@ message Events{
 // Event is a generic object that can be Created, 
 // Updated, Deleted by the controlplane.
 message Event {
-  // Data can container one or more instances of IPSet or NetworkPolicy
+  // Data can contain one or more instances of IPSet or NetworkPolicy
   // objects.
 	repeated google.protobuf.Struct data = 3;
 }
