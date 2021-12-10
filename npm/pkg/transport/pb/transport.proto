@@ -13,6 +13,10 @@ service DataplaneEvents{
 message DatapathPodMetadata {
   string pod = 1; // Daemonset Pod ID
   string node = 2; // Node name
+  enum APIVersion {
+    V1 = 0;
+  }
+  APIVersion apiVersion = 3; // Controlplane API version to support backwards compatibility
 }
 
 // Events defines the operation (event type) and object type being
