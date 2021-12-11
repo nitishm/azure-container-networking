@@ -27,5 +27,7 @@ func main() {
 
 	m := transport.NewManager(port)
 
-	m.Start(ctx)
+	if err := m.Start(ctx); err != nil {
+		panic(err)
+	}
 }

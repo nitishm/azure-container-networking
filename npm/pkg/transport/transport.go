@@ -55,13 +55,19 @@ func NewManager(port int) *Manager {
 	}
 }
 
-func (m *Manager) Start(ctx context.Context) {
+func (m *Manager) Start(ctx context.Context) error {
 	klog.Info("Starting transport manager")
-	m.start(ctx)
+	if err := m.start(ctx); err != nil {
+		klog.Errorf("Failed to Start transport manager: %v", err)
+		return err
+	}
+	return nil
 }
 
-func (m *Manager) start(ctx context.Context) {
-	go m.handle()
+func (m *Manager) start(ctx context.Context) error {
+	if err := m.handle(); err != nil {
+		return fmt.Errorf("failed to start transport manager handlers: %w", err)
+	}
 
 	for {
 		select {
@@ -79,19 +85,19 @@ func (m *Manager) start(ctx context.Context) {
 			}
 		case <-ctx.Done():
 			klog.Info("Stopping transport manager")
-			return
+			return nil
 		case err := <-m.errCh:
 			klog.Errorf("Error in transport manager: %v", err)
-			return
+			return err
 		}
 	}
 }
 
-func (m *Manager) handle() {
+func (m *Manager) handle() error {
 	klog.Info("Starting transport manager listener")
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", m.port))
 	if err != nil {
-		m.errCh <- fmt.Errorf("failed to handle server connections: %w", err)
+		return fmt.Errorf("failed to handle server connections: %w", err)
 	}
 
 	var opts []grpc.ServerOption = []grpc.ServerOption{
@@ -110,8 +116,13 @@ func (m *Manager) handle() {
 	reflection.Register(server)
 
 	klog.Info("Starting transport manager server")
+
 	// Start gRPC Server in background
-	if err := server.Serve(lis); err != nil {
-		m.errCh <- fmt.Errorf("failed to start gRPC server: %w", err)
-	}
+	go func(errCh chan<- error) {
+		if err := server.Serve(lis); err != nil {
+			errCh <- fmt.Errorf("failed to start gRPC server: %w", err)
+		}
+	}(m.errCh)
+
+	return nil
 }
