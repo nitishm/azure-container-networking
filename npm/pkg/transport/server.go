@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"time"
 
 	"github.com/Azure/azure-container-networking/npm/pkg/transport/pb"
@@ -15,7 +16,7 @@ type clientStreamConnection struct {
 	timestamp int64
 }
 
-// Addr returns the address of the client
+// String returns the address of the client
 func (c clientStreamConnection) String() string {
 	return c.addr
 }
@@ -23,12 +24,14 @@ func (c clientStreamConnection) String() string {
 // DataplaneEventsServer is the gRPC server for the DataplaneEvents service
 type DataplaneEventsServer struct {
 	pb.UnimplementedDataplaneEventsServer
+	ctx   context.Context
 	regCh chan<- clientStreamConnection
 }
 
 // NewServer creates a new DataplaneEventsServer instance
-func NewServer(ch chan clientStreamConnection) *DataplaneEventsServer {
+func NewServer(ctx context.Context, ch chan clientStreamConnection) *DataplaneEventsServer {
 	return &DataplaneEventsServer{
+		ctx:   ctx,
 		regCh: ch,
 	}
 }
@@ -49,5 +52,9 @@ func (d *DataplaneEventsServer) Connect(m *pb.DatapathPodMetadata, stream pb.Dat
 
 	// Add stream to the list of active streams
 	d.regCh <- conn
+
+	// This should block until the client disconnects
+	<-d.ctx.Done()
+
 	return nil
 }

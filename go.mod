@@ -99,7 +99,10 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 )
 
-require github.com/gofrs/uuid v3.3.0+incompatible // indirect
+require (
+	github.com/fatih/structs v1.1.0
+	github.com/gofrs/uuid v3.3.0+incompatible // indirect
+)
 
 replace (
 	github.com/Microsoft/go-winio => github.com/microsoft/go-winio v0.4.17

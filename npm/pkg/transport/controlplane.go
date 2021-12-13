@@ -9,10 +9,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/stats"
+	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/klog/v2"
 )
 
 type Manager struct {
+	ctx context.Context
+
 	// Server is the gRPC server
 	Server pb.DataplaneEventsServer
 
@@ -26,6 +29,9 @@ type Manager struct {
 	// port is the port the manager is listening on
 	port int
 
+	// inCh is the input channel for the manager
+	inCh chan interface{}
+
 	// regCh is the registration channel
 	regCh chan clientStreamConnection
 
@@ -37,7 +43,7 @@ type Manager struct {
 }
 
 // New creates a new transport manager
-func NewManager(port int) *Manager {
+func NewManager(ctx context.Context, port int) *Manager {
 	// Create a registration channel
 	regCh := make(chan clientStreamConnection, grpcMaxConcurrentStreams)
 
@@ -45,26 +51,33 @@ func NewManager(port int) *Manager {
 	deregCh := make(chan deregistrationEvent, grpcMaxConcurrentStreams)
 
 	return &Manager{
-		Server:        NewServer(regCh),
+		ctx:           ctx,
+		Server:        NewServer(ctx, regCh),
 		Watchdog:      NewWatchdog(deregCh),
 		Registrations: make(map[string]clientStreamConnection),
 		port:          port,
+		inCh:          make(chan interface{}),
 		errCh:         make(chan error),
 		deregCh:       deregCh,
 		regCh:         regCh,
 	}
 }
 
-func (m *Manager) Start(ctx context.Context) error {
+// InputChannel returns the input channel for the manager
+func (m *Manager) InputChannel() chan interface{} {
+	return m.inCh
+}
+
+func (m *Manager) Start() error {
 	klog.Info("Starting transport manager")
-	if err := m.start(ctx); err != nil {
+	if err := m.start(); err != nil {
 		klog.Errorf("Failed to Start transport manager: %v", err)
 		return err
 	}
 	return nil
 }
 
-func (m *Manager) start(ctx context.Context) error {
+func (m *Manager) start() error {
 	if err := m.handle(); err != nil {
 		return fmt.Errorf("failed to start transport manager handlers: %w", err)
 	}
@@ -83,7 +96,23 @@ func (m *Manager) start(ctx context.Context) error {
 					klog.Info("Ignoring stale deregistration event")
 				}
 			}
-		case <-ctx.Done():
+		case msg := <-m.inCh:
+			for _, client := range m.Registrations {
+				if err := client.stream.SendMsg(&pb.Events{
+					Type:   *pb.Events_APPLY.Enum(),
+					Object: *pb.Events_IPSET.Enum(),
+					Event: []*pb.Event{
+						{
+							Data: []*structpb.Struct{
+								msg.(*structpb.Struct),
+							},
+						},
+					},
+				}); err != nil {
+					klog.Errorf("Failed to send message to client %s: %v", client, err)
+				}
+			}
+		case <-m.ctx.Done():
 			klog.Info("Stopping transport manager")
 			return nil
 		case err := <-m.errCh:
@@ -92,7 +121,6 @@ func (m *Manager) start(ctx context.Context) error {
 		}
 	}
 }
-
 func (m *Manager) handle() error {
 	klog.Info("Starting transport manager listener")
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", m.port))
@@ -118,11 +146,11 @@ func (m *Manager) handle() error {
 	klog.Info("Starting transport manager server")
 
 	// Start gRPC Server in background
-	go func(errCh chan<- error) {
+	go func() {
 		if err := server.Serve(lis); err != nil {
-			errCh <- fmt.Errorf("failed to start gRPC server: %w", err)
+			m.errCh <- fmt.Errorf("failed to start gRPC server: %w", err)
 		}
-	}(m.errCh)
+	}()
 
 	return nil
 }
