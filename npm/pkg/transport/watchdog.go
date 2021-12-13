@@ -7,6 +7,18 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
+// Defined type for context key
+type watchdogContextKey string
+
+// String implements the Stringer interface
+func (c watchdogContextKey) String() string {
+	return string(c)
+}
+
+// contextRemoteAddrKey is the key used to store the remote address in the context
+var contextRemoteAddrKey = watchdogContextKey("remote-addr")
+
+// deregistrationEvent is the type of event that is sent to the deregistration channel
 type deregistrationEvent struct {
 	remoteAddr string
 	timestamp  int64
@@ -36,14 +48,14 @@ func (h *Watchdog) HandleRPC(ctx context.Context, _ stats.RPCStats) {
 
 func (h *Watchdog) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
 	// Add the remote address to the context so that we can use it during a connection end event
-	return context.WithValue(ctx, remoteAddrContextKey, info.RemoteAddr.String()) //nolint:staticcheck //ignore staticcheck error
+	return context.WithValue(ctx, contextRemoteAddrKey, info.RemoteAddr.String())
 }
 
 // HandleConn processes the Conn stats.
 func (h *Watchdog) HandleConn(c context.Context, s stats.ConnStats) {
 	if _, ok := s.(*stats.ConnEnd); ok {
 		// Watch for connection end events
-		remoteAddr := c.Value(remoteAddrContextKey).(string)
+		remoteAddr := c.Value(contextRemoteAddrKey).(string)
 		h.deregCh <- deregistrationEvent{
 			remoteAddr: remoteAddr,
 			timestamp:  time.Now().Unix(),
