@@ -2,6 +2,8 @@ package dataplane
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/Azure/azure-container-networking/npm/pkg/dataplane/policies"
 	npmerrors "github.com/Azure/azure-container-networking/npm/util/errors"
@@ -10,8 +12,10 @@ import (
 )
 
 const (
-	policyWithSets policyMode = "policyWithSets"
-	policyWithIPs  policyMode = "policyWithIPs"
+	policyWithSets     policyMode = "policyWithSets"
+	policyWithIPs      policyMode = "policyWithIPs"
+	maxNoNetRetryCount int        = 240 // max wait time 240*5 == 20 mins
+	maxNoNetSleepTime  int        = 5   // in seconds
 )
 
 func (dp *DataPlane) setPolicyMode() {
@@ -30,7 +34,7 @@ func (dp *DataPlane) initializeDataPlane() error {
 		dp.setPolicyMode()
 	}
 
-	err := dp.setNetworkIDByName(AzureNetworkName)
+	err := dp.getNetworkInfo()
 	if err != nil {
 		return err
 	}
@@ -41,6 +45,32 @@ func (dp *DataPlane) initializeDataPlane() error {
 	}
 
 	return nil
+}
+
+func (dp *DataPlane) getNetworkInfo() error {
+	retryNumber := 0
+	ticker := time.NewTicker(time.Second * time.Duration(maxNoNetSleepTime))
+	defer ticker.Stop()
+
+	var err error
+	for ; true; <-ticker.C {
+		err = dp.setNetworkIDByName(AzureNetworkName)
+		if err == nil || !isNetworkNotFoundErr(err) {
+			return err
+		}
+		retryNumber++
+		if retryNumber >= maxNoNetRetryCount {
+			break
+		}
+		klog.Infof("[DataPlane Windows] Network with name %s not found. Retrying in %d seconds, Current retry number %d, max retries: %d",
+			AzureNetworkName,
+			maxNoNetSleepTime,
+			retryNumber,
+			maxNoNetRetryCount,
+		)
+	}
+
+	return fmt.Errorf("failed to get network info after %d retries with err %w", maxNoNetRetryCount, err)
 }
 
 func (dp *DataPlane) resetDataPlane() error {
@@ -291,4 +321,8 @@ func (dp *DataPlane) getAllEndpointIDs() []string {
 		endpointIDs = append(endpointIDs, endpoint.ID)
 	}
 	return endpointIDs
+}
+
+func isNetworkNotFoundErr(err error) bool {
+	return strings.Contains(err.Error(), fmt.Sprintf("Network name \"%s\" not found", AzureNetworkName))
 }

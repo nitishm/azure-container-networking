@@ -102,6 +102,14 @@ require (
 require (
 	github.com/fatih/structs v1.1.0
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
+	github.com/jsternberg/zap-logfmt v1.2.0
+	go.uber.org/zap v1.18.1
+)
+
+require (
+	github.com/gofrs/uuid v3.3.0+incompatible // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
 )
 
 replace (
