@@ -37,6 +37,7 @@ func main() {
 	go func() {
 		for _, d := range testData() {
 			ch <- d
+			//nolint:gomnd //ignore for test
 			time.Sleep(time.Second * 5)
 		}
 	}()
@@ -53,8 +54,9 @@ func testData() []*structpb.Struct {
 			Type    string
 			Payload string
 		}{
-			Type:    fmt.Sprintf("IPSET-%d", i),
-			Payload: fmt.Sprintf("172.17.0.%d/%d", i, rand.Uint32()%32),
+			Type: fmt.Sprintf("IPSET-%d", i),
+			//nolint:gosec //ignore for test
+			Payload: fmt.Sprintf("172.17.0.%d/%d", i, rand.Uint32()%32), //nolint:gomnd //ignore for test
 		}
 
 		m := structs.Map(v)

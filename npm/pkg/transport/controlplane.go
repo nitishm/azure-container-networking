@@ -121,6 +121,7 @@ func (m *Manager) start() error {
 		}
 	}
 }
+
 func (m *Manager) handle() error {
 	klog.Info("Starting transport manager listener")
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", m.port))
