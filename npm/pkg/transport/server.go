@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/Azure/azure-container-networking/npm/pkg/transport/pb"
+	"github.com/Azure/azure-container-networking/npm/pkg/protos"
 	"google.golang.org/grpc/peer"
 )
 
 // clientStreamConnection represents a client stream connection
 type clientStreamConnection struct {
-	stream pb.DataplaneEvents_ConnectServer
-	*pb.DatapathPodMetadata
+	stream protos.DataplaneEvents_ConnectServer
+	*protos.DatapathPodMetadata
 	addr      string
 	timestamp int64
 }
@@ -23,7 +23,7 @@ func (c clientStreamConnection) String() string {
 
 // DataplaneEventsServer is the gRPC server for the DataplaneEvents service
 type DataplaneEventsServer struct {
-	pb.UnimplementedDataplaneEventsServer
+	protos.UnimplementedDataplaneEventsServer
 	ctx   context.Context
 	regCh chan<- clientStreamConnection
 }
@@ -37,7 +37,7 @@ func NewServer(ctx context.Context, ch chan clientStreamConnection) *DataplaneEv
 }
 
 // Connect is called when a client connects to the server
-func (d *DataplaneEventsServer) Connect(m *pb.DatapathPodMetadata, stream pb.DataplaneEvents_ConnectServer) error {
+func (d *DataplaneEventsServer) Connect(m *protos.DatapathPodMetadata, stream protos.DataplaneEvents_ConnectServer) error {
 	p, ok := peer.FromContext(stream.Context())
 	if !ok {
 		return ErrNoPeer

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Azure/azure-container-networking/npm/pkg/transport/pb"
+	"github.com/Azure/azure-container-networking/npm/pkg/protos"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/stats"
@@ -17,7 +17,7 @@ type Manager struct {
 	ctx context.Context
 
 	// Server is the gRPC server
-	Server pb.DataplaneEventsServer
+	Server protos.DataplaneEventsServer
 
 	// Watchdog is the watchdog for the gRPC server that implements the
 	// gRPC stats handler interface
@@ -98,10 +98,10 @@ func (m *Manager) start() error {
 			}
 		case msg := <-m.inCh:
 			for _, client := range m.Registrations {
-				if err := client.stream.SendMsg(&pb.Events{
-					Type:   *pb.Events_APPLY.Enum(),
-					Object: *pb.Events_IPSET.Enum(),
-					Event: []*pb.Event{
+				if err := client.stream.SendMsg(&protos.Events{
+					Type:   *protos.Events_APPLY.Enum(),
+					Object: *protos.Events_IPSET.Enum(),
+					Event: []*protos.Event{
 						{
 							Data: []*structpb.Struct{
 								msg.(*structpb.Struct),
@@ -134,7 +134,7 @@ func (m *Manager) handle() error {
 	}
 
 	server := grpc.NewServer(opts...)
-	pb.RegisterDataplaneEventsServer(
+	protos.RegisterDataplaneEventsServer(
 		server,
 		m.Server,
 	)

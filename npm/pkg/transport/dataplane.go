@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Azure/azure-container-networking/npm/pkg/transport/pb"
+	"github.com/Azure/azure-container-networking/npm/pkg/protos"
 	"google.golang.org/grpc"
 )
 
 // DataplaneEventsClient is a client for the DataplaneEvents service
 type DataplaneEventsClient struct {
-	pb.DataplaneEventsClient
+	protos.DataplaneEventsClient
 	pod        string
 	node       string
 	serverAddr string
@@ -23,7 +23,7 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 	}
 
 	return &DataplaneEventsClient{
-		DataplaneEventsClient: pb.NewDataplaneEventsClient(cc),
+		DataplaneEventsClient: protos.NewDataplaneEventsClient(cc),
 		pod:                   pod,
 		node:                  node,
 		serverAddr:            addr,
@@ -31,9 +31,9 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 }
 
 func (c *DataplaneEventsClient) Start(ctx context.Context) error {
-	clientMetadata := &pb.DatapathPodMetadata{
-		Pod:  c.pod,
-		Node: c.node,
+	clientMetadata := &protos.DatapathPodMetadata{
+		PodName:  c.pod,
+		NodeName: c.node,
 	}
 
 	opts := []grpc.CallOption{}
@@ -45,7 +45,7 @@ func (c *DataplaneEventsClient) Start(ctx context.Context) error {
 	return c.run(ctx, connectClient)
 }
 
-func (c *DataplaneEventsClient) run(ctx context.Context, connectClient pb.DataplaneEvents_ConnectClient) error {
+func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient) error {
 	for {
 		select {
 		case <-ctx.Done():

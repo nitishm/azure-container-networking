@@ -1,7 +1,8 @@
 TARGET_DIRS = \
 	./pkg/dataplane \
 	./pkg/controlplane \
-	./pkg/transport
+	./pkg/transport \
+	./pkg/protos
 all: generate
 
 generate:

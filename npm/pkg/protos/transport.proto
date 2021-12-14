@@ -1,6 +1,6 @@
 syntax = "proto3";
-package pb;
-option go_package = "github.com/Azure/azure-container-networking/npm/pkg/transport/pb;pb";
+package protos;
+option go_package = "github.com/Azure/azure-container-networking/npm/pkg/protos;protos";
 
 import "google/protobuf/struct.proto";
 
@@ -11,8 +11,8 @@ service DataplaneEvents{
 
 // DatapathPodMetadata is the metadata for a datapath pod
 message DatapathPodMetadata {
-  string pod = 1; // Daemonset Pod ID
-  string node = 2; // Node name
+  string pod_name = 1; // Daemonset Pod ID
+  string node_name = 2; // Node name
   enum APIVersion {
     V1 = 0;
   }
