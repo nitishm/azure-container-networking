@@ -22,11 +22,13 @@ func main() {
 		cancel()
 	}()
 
+	stopCh := make(chan struct{})
+
 	c, err := transport.NewDataplaneEventsClient(ctx, "podname", "nodename", "127.0.0.1:8080")
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := c.Start(ctx); err != nil {
+	if err := c.Start(ctx, stopCh); err != nil {
 		log.Fatal(err)
 	}
 }

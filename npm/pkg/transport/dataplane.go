@@ -6,6 +6,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/npm/pkg/protos"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 )
 
 // DataplaneEventsClient is a client for the DataplaneEvents service
@@ -14,6 +15,8 @@ type DataplaneEventsClient struct {
 	pod        string
 	node       string
 	serverAddr string
+
+	outCh chan *protos.Events
 }
 
 func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*DataplaneEventsClient, error) {
@@ -27,10 +30,15 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 		pod:                   pod,
 		node:                  node,
 		serverAddr:            addr,
+		outCh:                 make(chan *protos.Events),
 	}, nil
 }
 
-func (c *DataplaneEventsClient) Start(ctx context.Context) error {
+func (c *DataplaneEventsClient) EventsChannel() <-chan *protos.Events {
+	return c.outCh
+}
+
+func (c *DataplaneEventsClient) Start(ctx context.Context, stopCh <-chan struct{}) error {
 	clientMetadata := &protos.DatapathPodMetadata{
 		PodName:  c.pod,
 		NodeName: c.node,
@@ -42,34 +50,41 @@ func (c *DataplaneEventsClient) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to dataplane events server: %w", err)
 	}
 
-	return c.run(ctx, connectClient)
+	return c.run(ctx, connectClient, stopCh)
 }
 
-func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient) error {
+func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient, stopCh <-chan struct{}) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context done: %w", ctx.Err())
+			klog.Errorf("context done: %v", ctx.Err())
+			return ctx.Err()
+		case <-stopCh:
+			klog.Info("Received message on stop channel. Stopping transport client")
+			return nil
 		default:
 			event, err := connectClient.Recv()
 			if err != nil {
-				break
+				klog.Errorf("failed to receive event: %v", err)
+				return err
 			}
+
+			c.outCh <- event
 
 			// TODO: REMOVE ME
 			// This is for debugging purposes only
-			fmt.Printf(
-				"Received event type %s object type %s: \n",
-				event.GetType(),
-				event.GetObject(),
-			)
+			// fmt.Printf(
+			// 	"Received event type %s object type %s: \n",
+			// 	event.GetType(),
+			// 	event.GetObject(),
+			// )
 
-			for _, e := range event.GetEvent() {
-				for _, d := range e.GetData() {
-					eventAsMap := d.AsMap()
-					fmt.Printf("%s: %s\n", eventAsMap["Type"], eventAsMap["Payload"])
-				}
-			}
+			// for _, e := range event.GetEvent() {
+			// 	for _, d := range e.GetData() {
+			// 		eventAsMap := d.AsMap()
+			// 		fmt.Printf("%s: %s\n", eventAsMap["Type"], eventAsMap["Payload"])
+			// 	}
+			// }
 		}
 	}
 }

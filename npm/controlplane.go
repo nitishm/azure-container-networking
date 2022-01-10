@@ -34,7 +34,6 @@ type NetworkPolicyControlplane struct {
 }
 
 func NewNetworkPolicyControlplane(
-	ctx context.Context,
 	config npmconfig.Config,
 	informerFactory informers.SharedInformerFactory,
 	dp dataplane.GenericDataplane,
@@ -43,7 +42,7 @@ func NewNetworkPolicyControlplane(
 ) *NetworkPolicyControlplane {
 	klog.Infof("API server version: %+v AI metadata %+v", k8sServerVersion, aiMetadata)
 
-	mgr := transport.NewManager(ctx, config.Transport.Port)
+	mgr := transport.NewManager(context.Background(), config.Transport.Port)
 
 	// TODO (nitishm): This needs to be passed to the Dataplane instance
 	_ = mgr.InputChannel()
