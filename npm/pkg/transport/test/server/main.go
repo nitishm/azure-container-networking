@@ -42,7 +42,9 @@ func main() {
 		}
 	}()
 
-	if err := m.Start(); err != nil {
+	stopCh := make(chan struct{})
+
+	if err := m.Start(stopCh); err != nil {
 		panic(err)
 	}
 }

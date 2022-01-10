@@ -68,16 +68,16 @@ func (m *Manager) InputChannel() chan interface{} {
 	return m.inCh
 }
 
-func (m *Manager) Start() error {
+func (m *Manager) Start(stopCh <-chan struct{}) error {
 	klog.Info("Starting transport manager")
-	if err := m.start(); err != nil {
+	if err := m.start(stopCh); err != nil {
 		klog.Errorf("Failed to Start transport manager: %v", err)
 		return err
 	}
 	return nil
 }
 
-func (m *Manager) start() error {
+func (m *Manager) start(stopCh <-chan struct{}) error {
 	if err := m.handle(); err != nil {
 		return fmt.Errorf("failed to start transport manager handlers: %w", err)
 	}
@@ -113,11 +113,14 @@ func (m *Manager) start() error {
 				}
 			}
 		case <-m.ctx.Done():
-			klog.Info("Stopping transport manager")
+			klog.Info("Context Done. Stopping transport manager")
 			return nil
 		case err := <-m.errCh:
 			klog.Errorf("Error in transport manager: %v", err)
 			return err
+		case <-stopCh:
+			klog.Info("Received message on stop channel. Stopping transport manager")
+			return nil
 		}
 	}
 }

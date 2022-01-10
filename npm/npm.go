@@ -5,7 +5,6 @@ package npm
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	npmconfig "github.com/Azure/azure-container-networking/npm/config"
 	"github.com/Azure/azure-container-networking/npm/ipsm"
@@ -15,65 +14,32 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/informers"
-	coreinformers "k8s.io/client-go/informers/core/v1"
-	networkinginformers "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	utilexec "k8s.io/utils/exec"
-)
-
-var (
-	aiMetadata         string
-	errMarshalNPMCache = errors.New("failed to marshal NPM Cache")
-)
-
-const (
-	heartbeatIntervalInMinutes = 30
-	// TODO: consider increasing thread number later when logics are correct
-	// threadness = 1
-)
-
-type CacheKey string
-
-// NPMCache Key Contract for Json marshal and unmarshal
-const (
-	NodeName    CacheKey = "NodeName"
-	NsMap       CacheKey = "NsMap"
-	PodMap      CacheKey = "PodMap"
-	ListMap     CacheKey = "ListMap"
-	SetMap      CacheKey = "SetMap"
-	EnvNodeName          = "HOSTNAME"
 )
 
 // NetworkPolicyManager contains informers for pod, namespace and networkpolicy.
 type NetworkPolicyManager struct {
 	config npmconfig.Config
 
-	informerFactory informers.SharedInformerFactory
-	podInformer     coreinformers.PodInformer
-	nsInformer      coreinformers.NamespaceInformer
-	npInformer      networkinginformers.NetworkPolicyInformer
-
-	// V1 controllers (to be deprecated)
-	podControllerV1       *controllersv1.PodController
-	namespaceControllerV1 *controllersv1.NamespaceController
-	npmNamespaceCacheV1   *controllersv1.NpmNamespaceCache
-	netPolControllerV1    *controllersv1.NetworkPolicyController
-
-	// V2 controllers
-	podControllerV2       *controllersv2.PodController
-	namespaceControllerV2 *controllersv2.NamespaceController
-	npmNamespaceCacheV2   *controllersv2.NpmNamespaceCache
-	netPolControllerV2    *controllersv2.NetworkPolicyController
-
 	// ipsMgr are shared in all controllers. Thus, only one ipsMgr is created for simple management
 	// and uses lock to avoid unintentional race condictions in IpsetManager.
 	ipsMgr *ipsm.IpsetManager
+
+	// Informers are the Kubernetes Informer
+	// https://pkg.go.dev/k8s.io/client-go/informers
+	Informers
+
+	// Legacy controllers for handling Kubernetes resource watcher events
+	// To be deprecated
+	K8SControllersV1
+
+	// Controllers for handling Kubernetes resource watcher events
+	K8SControllersV2
+
 	// Azure-specific variables
-	k8sServerVersion *version.Info
-	NodeName         string
-	version          string
-	TelemetryEnabled bool
+	AzureConfig
 }
 
 // NewNetworkPolicyManager creates a NetworkPolicyManager
@@ -86,15 +52,19 @@ func NewNetworkPolicyManager(config npmconfig.Config,
 	klog.Infof("API server version: %+v AI metadata %+v", k8sServerVersion, aiMetadata)
 
 	npMgr := &NetworkPolicyManager{
-		config:           config,
-		informerFactory:  informerFactory,
-		podInformer:      informerFactory.Core().V1().Pods(),
-		nsInformer:       informerFactory.Core().V1().Namespaces(),
-		npInformer:       informerFactory.Networking().V1().NetworkPolicies(),
-		k8sServerVersion: k8sServerVersion,
-		NodeName:         GetNodeName(),
-		version:          npmVersion,
-		TelemetryEnabled: true,
+		config: config,
+		Informers: Informers{
+			informerFactory: informerFactory,
+			podInformer:     informerFactory.Core().V1().Pods(),
+			nsInformer:      informerFactory.Core().V1().Namespaces(),
+			npInformer:      informerFactory.Networking().V1().NetworkPolicies(),
+		},
+		AzureConfig: AzureConfig{
+			k8sServerVersion: k8sServerVersion,
+			NodeName:         GetNodeName(),
+			version:          npmVersion,
+			TelemetryEnabled: true,
+		},
 	}
 
 	// create v2 NPM specific components.
@@ -109,6 +79,7 @@ func NewNetworkPolicyManager(config npmconfig.Config,
 
 	// create v1 NPM specific components.
 	npMgr.ipsMgr = ipsm.NewIpsetManager(exec)
+
 	npMgr.npmNamespaceCacheV1 = &controllersv1.NpmNamespaceCache{NsMap: make(map[string]*controllersv1.Namespace)}
 	npMgr.podControllerV1 = controllersv1.NewPodController(npMgr.podInformer, npMgr.ipsMgr, npMgr.npmNamespaceCacheV1)
 	npMgr.namespaceControllerV1 = controllersv1.NewNameSpaceController(npMgr.nsInformer, npMgr.ipsMgr, npMgr.npmNamespaceCacheV1)
@@ -179,11 +150,6 @@ func (npMgr *NetworkPolicyManager) GetAppVersion() string {
 	return npMgr.version
 }
 
-// GetAIMetadata returns ai metadata number
-func GetAIMetadata() string {
-	return aiMetadata
-}
-
 // Start starts shared informers and waits for the shared informer cache to sync.
 func (npMgr *NetworkPolicyManager) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
 	if !config.Toggles.EnableV2NPM {
@@ -224,9 +190,4 @@ func (npMgr *NetworkPolicyManager) Start(config npmconfig.Config, stopCh <-chan 
 	go npMgr.netPolControllerV1.RunPeriodicTasks(stopCh)
 
 	return nil
-}
-
-func GetNodeName() string {
-	nodeName := os.Getenv(EnvNodeName)
-	return nodeName
 }
