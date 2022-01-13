@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"time"
@@ -11,6 +12,7 @@ import (
 	restserver "github.com/Azure/azure-container-networking/npm/http/server"
 	"github.com/Azure/azure-container-networking/npm/metrics"
 	"github.com/Azure/azure-container-networking/npm/pkg/dataplane"
+	"github.com/Azure/azure-container-networking/npm/pkg/transport"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -91,12 +93,19 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 	k8sServerVersion := k8sServerVersion(clientset)
 
 	var dp dataplane.GenericDataplane
+
+	mgr := transport.NewManager(context.Background(), config.Transport.Port)
+
+	// TODO (vakalapa): This needs to be passed to the Dataplane instance
+	_ = mgr.InputChannel()
+
+	// TODO (vakalapa): Replace this with the DP shim implementation of the GenericDataplane interface
 	dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim(), npmV2DataplaneCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create dataplane with error %w", err)
 	}
 
-	npMgr := npm.NewNetworkPolicyControlplane(config, factory, dp, version, k8sServerVersion)
+	npMgr := npm.NewNetworkPolicyControlplane(config, factory, mgr, dp, version, k8sServerVersion)
 	err = metrics.CreateTelemetryHandle(version, npm.GetAIMetadata())
 	if err != nil {
 		klog.Infof("CreateTelemetryHandle failed with error %v.", err)

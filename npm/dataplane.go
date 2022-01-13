@@ -1,3 +1,5 @@
+// Copyright 2018 Microsoft. All rights reserved.
+// MIT License
 package npm
 
 import (
@@ -14,16 +16,16 @@ const (
 	NODE_NAME_ENV = "NODE_NAME"
 )
 
-type NetworkPolicyDataplane struct {
+type NetworkPolicyDaemon struct {
 	ctx    context.Context
 	config npmconfig.Config
 	client *transport.DataplaneEventsClient
 }
 
-func NewNetworkPolicyDataplane(
+func NewNetworkPolicyDaemon(
 	ctx context.Context,
 	config npmconfig.Config,
-) (*NetworkPolicyDataplane, error) {
+) (*NetworkPolicyDaemon, error) {
 
 	// FIXME (nitishm): Where do these come from? Should we p
 	pod := os.Getenv(POD_NAME_ENV)
@@ -36,14 +38,14 @@ func NewNetworkPolicyDataplane(
 		return nil, err
 	}
 
-	return &NetworkPolicyDataplane{
+	return &NetworkPolicyDaemon{
 		ctx:    ctx,
 		config: config,
 		client: client,
 	}, nil
 }
 
-func (n *NetworkPolicyDataplane) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
+func (n *NetworkPolicyDaemon) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
 	_ = n.client.EventsChannel()
 	// TODO (nitishm): Start the goalstate processor which reads events from the
 	// channel and sends them to the goalstate manager.

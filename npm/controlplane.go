@@ -1,7 +1,8 @@
+// Copyright 2018 Microsoft. All rights reserved.
+// MIT License
 package npm
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -36,16 +37,12 @@ type NetworkPolicyControlplane struct {
 func NewNetworkPolicyControlplane(
 	config npmconfig.Config,
 	informerFactory informers.SharedInformerFactory,
+	mgr *transport.Manager,
 	dp dataplane.GenericDataplane,
 	npmVersion string,
 	k8sServerVersion *version.Info,
 ) *NetworkPolicyControlplane {
 	klog.Infof("API server version: %+v AI metadata %+v", k8sServerVersion, aiMetadata)
-
-	mgr := transport.NewManager(context.Background(), config.Transport.Port)
-
-	// TODO (nitishm): This needs to be passed to the Dataplane instance
-	_ = mgr.InputChannel()
 
 	n := &NetworkPolicyControlplane{
 		config: config,

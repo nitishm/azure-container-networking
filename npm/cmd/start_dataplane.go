@@ -40,7 +40,7 @@ func startDataplane(config npmconfig.Config) error {
 		return err
 	}
 
-	n, err := npm.NewNetworkPolicyDataplane(context.Background(), config)
+	n, err := npm.NewNetworkPolicyDaemon(context.Background(), config)
 	if err != nil {
 		klog.Errorf("failed to create dataplane : %v", err)
 		return err
