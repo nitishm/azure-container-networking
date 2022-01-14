@@ -82,6 +82,10 @@ func (dp *DataPlane) ResetDataPlane() error {
 	return dp.bootupDataPlane()
 }
 
+func (dp *DataPlane) GetIPSet(setName string) *ipsets.IPSet {
+	return dp.ipsetMgr.GetIPSet(setName)
+}
+
 // CreateIPSets takes in a set object and updates local cache with this set
 func (dp *DataPlane) CreateIPSets(setMetadata []*ipsets.IPSetMetadata) {
 	dp.ipsetMgr.CreateIPSets(setMetadata)
