@@ -17,7 +17,7 @@ import (
 	"k8s.io/klog"
 )
 
-type NetworkPolicyControlplane struct {
+type NetworkPolicyServer struct {
 	config npmconfig.Config
 
 	// tm is the transport layer (gRPC) manager/server
@@ -34,14 +34,14 @@ type NetworkPolicyControlplane struct {
 	AzureConfig
 }
 
-func NewNetworkPolicyControlplane(
+func NewNetworkPolicyServer(
 	config npmconfig.Config,
 	informerFactory informers.SharedInformerFactory,
 	mgr *transport.Manager,
 	dp dataplane.GenericDataplane,
 	npmVersion string,
 	k8sServerVersion *version.Info,
-) (*NetworkPolicyControlplane, error) {
+) (*NetworkPolicyServer, error) {
 	klog.Infof("API server version: %+v AI metadata %+v", k8sServerVersion, aiMetadata)
 
 	if informerFactory == nil {
@@ -60,7 +60,7 @@ func NewNetworkPolicyControlplane(
 		return nil, fmt.Errorf("k8s server version is nil")
 	}
 
-	n := &NetworkPolicyControlplane{
+	n := &NetworkPolicyServer{
 		config: config,
 		tm:     mgr,
 		Informers: Informers{
@@ -85,7 +85,7 @@ func NewNetworkPolicyControlplane(
 	return n, nil
 }
 
-func (n *NetworkPolicyControlplane) MarshalJSON() ([]byte, error) {
+func (n *NetworkPolicyServer) MarshalJSON() ([]byte, error) {
 	m := map[CacheKey]json.RawMessage{}
 
 	var npmNamespaceCacheRaw []byte
@@ -119,11 +119,11 @@ func (n *NetworkPolicyControlplane) MarshalJSON() ([]byte, error) {
 	return npmCacheRaw, nil
 }
 
-func (n *NetworkPolicyControlplane) GetAppVersion() string {
+func (n *NetworkPolicyServer) GetAppVersion() string {
 	return n.version
 }
 
-func (n *NetworkPolicyControlplane) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
+func (n *NetworkPolicyServer) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
 	// Starts all informers manufactured by n's informerFactory.
 	n.informerFactory.Start(stopCh)
 

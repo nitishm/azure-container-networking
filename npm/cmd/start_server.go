@@ -105,7 +105,7 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 		return fmt.Errorf("failed to create dataplane with error: %w", err)
 	}
 
-	npMgr, err := npm.NewNetworkPolicyControlplane(config, factory, mgr, dp, version, k8sServerVersion)
+	npMgr, err := npm.NewNetworkPolicyServer(config, factory, mgr, dp, version, k8sServerVersion)
 	if err != nil {
 		klog.Errorf("failed to create NPM controlplane manager with error: %v", err)
 		return fmt.Errorf("failed to create NPM controlplane manager: %w", err)
