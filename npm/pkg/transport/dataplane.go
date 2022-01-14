@@ -11,6 +11,8 @@ import (
 
 // DataplaneEventsClient is a client for the DataplaneEvents service
 type DataplaneEventsClient struct {
+	ctx context.Context
+
 	protos.DataplaneEventsClient
 	pod        string
 	node       string
@@ -20,6 +22,14 @@ type DataplaneEventsClient struct {
 }
 
 func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*DataplaneEventsClient, error) {
+	if pod == "" || node == "" {
+		return nil, fmt.Errorf("pod and node must be set")
+	}
+
+	if addr == "" {
+		return nil, fmt.Errorf("address must be set")
+	}
+
 	// TODO Make this secure
 	cc, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -27,6 +37,7 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 	}
 
 	return &DataplaneEventsClient{
+		ctx:                   ctx,
 		DataplaneEventsClient: protos.NewDataplaneEventsClient(cc),
 		pod:                   pod,
 		node:                  node,
@@ -35,23 +46,23 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 	}, nil
 }
 
-func (c *DataplaneEventsClient) EventsChannel() <-chan *protos.Events {
+func (c *DataplaneEventsClient) EventsChannel() chan *protos.Events {
 	return c.outCh
 }
 
-func (c *DataplaneEventsClient) Start(ctx context.Context, stopCh <-chan struct{}) error {
+func (c *DataplaneEventsClient) Start(stopCh <-chan struct{}) error {
 	clientMetadata := &protos.DatapathPodMetadata{
 		PodName:  c.pod,
 		NodeName: c.node,
 	}
 
 	opts := []grpc.CallOption{}
-	connectClient, err := c.Connect(ctx, clientMetadata, opts...)
+	connectClient, err := c.Connect(c.ctx, clientMetadata, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to dataplane events server: %w", err)
 	}
 
-	return c.run(ctx, connectClient, stopCh)
+	return c.run(c.ctx, connectClient, stopCh)
 }
 
 func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient, stopCh <-chan struct{}) error {

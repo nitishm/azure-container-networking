@@ -4,51 +4,50 @@ package npm
 
 import (
 	"context"
-	"os"
-	"strconv"
+	"fmt"
 
 	npmconfig "github.com/Azure/azure-container-networking/npm/config"
+	"github.com/Azure/azure-container-networking/npm/pkg/controlplane/goalstateprocessor"
+	"github.com/Azure/azure-container-networking/npm/pkg/dataplane"
 	"github.com/Azure/azure-container-networking/npm/pkg/transport"
 )
 
-const (
-	POD_NAME_ENV  = "POD_NAME"
-	NODE_NAME_ENV = "NODE_NAME"
-)
-
 type NetworkPolicyDaemon struct {
-	ctx    context.Context
-	config npmconfig.Config
-	client *transport.DataplaneEventsClient
+	ctx     context.Context
+	config  npmconfig.Config
+	client  *transport.DataplaneEventsClient
+	version string
+	gsp     *goalstateprocessor.GoalStateProcessor
 }
 
 func NewNetworkPolicyDaemon(
 	ctx context.Context,
 	config npmconfig.Config,
+	dp dataplane.GenericDataplane,
+	gsp *goalstateprocessor.GoalStateProcessor,
+	client *transport.DataplaneEventsClient,
+	npmVersion string,
 ) (*NetworkPolicyDaemon, error) {
 
-	// FIXME (nitishm): Where do these come from? Should we p
-	pod := os.Getenv(POD_NAME_ENV)
-	node := os.Getenv(NODE_NAME_ENV)
-
-	addr := config.Transport.Address + ":" + strconv.Itoa(config.Transport.Port)
-
-	client, err := transport.NewDataplaneEventsClient(ctx, pod, node, addr)
-	if err != nil {
-		return nil, err
+	if dp == nil {
+		return nil, fmt.Errorf("dataplane is nil")
 	}
 
 	return &NetworkPolicyDaemon{
-		ctx:    ctx,
-		config: config,
-		client: client,
+		ctx:     ctx,
+		config:  config,
+		gsp:     gsp,
+		client:  client,
+		version: npmVersion,
 	}, nil
 }
 
-func (n *NetworkPolicyDaemon) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
-	_ = n.client.EventsChannel()
-	// TODO (nitishm): Start the goalstate processor which reads events from the
-	// channel and sends them to the goalstate manager.
+func (n *NetworkPolicyDaemon) Start(config npmconfig.Config, stopCh <-chan struct{}) {
+	go n.gsp.Start(stopCh)
+	go n.client.Start(stopCh)
+	<-stopCh
+}
 
-	return n.client.Start(n.ctx, stopCh)
+func (n *NetworkPolicyDaemon) GetAppVersion() string {
+	return n.version
 }

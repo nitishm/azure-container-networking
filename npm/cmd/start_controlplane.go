@@ -6,12 +6,12 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/npm"
 	npmconfig "github.com/Azure/azure-container-networking/npm/config"
 	restserver "github.com/Azure/azure-container-networking/npm/http/server"
 	"github.com/Azure/azure-container-networking/npm/metrics"
 	"github.com/Azure/azure-container-networking/npm/pkg/dataplane"
+	"github.com/Azure/azure-container-networking/npm/pkg/dataplane/dpshim"
 	"github.com/Azure/azure-container-networking/npm/pkg/transport"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -55,6 +55,7 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 
 	err = initLogging()
 	if err != nil {
+		klog.Errorf("failed to init logging : %v", err)
 		return err
 	}
 
@@ -64,12 +65,14 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 		klog.Infof("loading in cluster kubeconfig")
 		k8sConfig, err = rest.InClusterConfig()
 		if err != nil {
+			klog.Errorf("failed to get in cluster config: %v", err)
 			return fmt.Errorf("failed to load in cluster config: %w", err)
 		}
 	} else {
 		klog.Infof("loading kubeconfig from flag: %s", flags.KubeConfigPath)
 		k8sConfig, err = clientcmd.BuildConfigFromFlags("", flags.KubeConfigPath)
 		if err != nil {
+			klog.Errorf("failed to load kubeconfig: %v", err)
 			return fmt.Errorf("failed to load kubeconfig [%s] with err config: %w", flags.KubeConfigPath, err)
 		}
 	}
@@ -96,16 +99,18 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 
 	mgr := transport.NewManager(context.Background(), config.Transport.Port)
 
-	// TODO (vakalapa): This needs to be passed to the Dataplane instance
-	_ = mgr.InputChannel()
-
-	// TODO (vakalapa): Replace this with the DP shim implementation of the GenericDataplane interface
-	dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim(), npmV2DataplaneCfg)
+	dp, err = dpshim.NewDPSim(mgr.InputChannel())
 	if err != nil {
-		return fmt.Errorf("failed to create dataplane with error %w", err)
+		klog.Errorf("failed to create dataplane shim with error: %v", err)
+		return fmt.Errorf("failed to create dataplane with error: %w", err)
 	}
 
-	npMgr := npm.NewNetworkPolicyControlplane(config, factory, mgr, dp, version, k8sServerVersion)
+	npMgr, err := npm.NewNetworkPolicyControlplane(config, factory, mgr, dp, version, k8sServerVersion)
+	if err != nil {
+		klog.Errorf("failed to create NPM controlplane manager with error: %v", err)
+		return fmt.Errorf("failed to create NPM controlplane manager: %w", err)
+	}
+
 	err = metrics.CreateTelemetryHandle(version, npm.GetAIMetadata())
 	if err != nil {
 		klog.Infof("CreateTelemetryHandle failed with error %v.", err)

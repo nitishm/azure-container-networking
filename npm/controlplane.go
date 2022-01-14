@@ -41,8 +41,24 @@ func NewNetworkPolicyControlplane(
 	dp dataplane.GenericDataplane,
 	npmVersion string,
 	k8sServerVersion *version.Info,
-) *NetworkPolicyControlplane {
+) (*NetworkPolicyControlplane, error) {
 	klog.Infof("API server version: %+v AI metadata %+v", k8sServerVersion, aiMetadata)
+
+	if informerFactory == nil {
+		return nil, fmt.Errorf("informer factory is nil")
+	}
+
+	if mgr == nil {
+		return nil, fmt.Errorf("transport manager is nil")
+	}
+
+	if dp == nil {
+		return nil, fmt.Errorf("dataplane is nil")
+	}
+
+	if k8sServerVersion == nil {
+		return nil, fmt.Errorf("k8s server version is nil")
+	}
 
 	n := &NetworkPolicyControlplane{
 		config: config,
@@ -66,7 +82,7 @@ func NewNetworkPolicyControlplane(
 	n.namespaceControllerV2 = controllersv2.NewNamespaceController(n.nsInformer, dp, n.npmNamespaceCacheV2)
 	n.netPolControllerV2 = controllersv2.NewNetworkPolicyController(n.npInformer, dp)
 
-	return n
+	return n, nil
 }
 
 func (n *NetworkPolicyControlplane) MarshalJSON() ([]byte, error) {
@@ -123,9 +139,6 @@ func (n *NetworkPolicyControlplane) Start(config npmconfig.Config, stopCh <-chan
 	if !cache.WaitForCacheSync(stopCh, n.npInformer.Informer().HasSynced) {
 		return fmt.Errorf("Network policy informer failed to sync")
 	}
-
-	// TODO (nitishm): The input channel for the transport layer needs to be
-	// passed to the Dataplane instance (i.e. ApplyDataplane should use this channel to send messages)
 
 	// start v2 NPM controllers after synced
 	go n.podControllerV2.Run(stopCh)

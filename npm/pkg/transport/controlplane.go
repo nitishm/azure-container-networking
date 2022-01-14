@@ -33,7 +33,7 @@ type Manager struct {
 	port int
 
 	// inCh is the input channel for the manager
-	inCh chan interface{}
+	inCh chan *protos.Events
 
 	// regCh is the registration channel
 	regCh chan clientStreamConnection
@@ -59,7 +59,7 @@ func NewManager(ctx context.Context, port int) *Manager {
 		Watchdog:      NewWatchdog(deregCh),
 		Registrations: make(map[string]clientStreamConnection),
 		port:          port,
-		inCh:          make(chan interface{}),
+		inCh:          make(chan *protos.Events),
 		errCh:         make(chan error),
 		deregCh:       deregCh,
 		regCh:         regCh,
@@ -67,7 +67,7 @@ func NewManager(ctx context.Context, port int) *Manager {
 }
 
 // InputChannel returns the input channel for the manager
-func (m *Manager) InputChannel() chan interface{} {
+func (m *Manager) InputChannel() chan *protos.Events {
 	return m.inCh
 }
 
