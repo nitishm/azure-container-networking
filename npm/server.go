@@ -34,6 +34,13 @@ type NetworkPolicyServer struct {
 	AzureConfig
 }
 
+var (
+	ErrInformerFactoryNil  = errors.New("informer factory is nil")
+	ErrTransportManagerNil = errors.New("transport manager is nil")
+	ErrK8SServerVersionNil = errors.New("k8s server version is nil")
+	ErrInformerSyncFailure = errors.New("informer sync failure")
+)
+
 func NewNetworkPolicyServer(
 	config npmconfig.Config,
 	informerFactory informers.SharedInformerFactory,
@@ -45,19 +52,19 @@ func NewNetworkPolicyServer(
 	klog.Infof("API server version: %+v AI metadata %+v", k8sServerVersion, aiMetadata)
 
 	if informerFactory == nil {
-		return nil, fmt.Errorf("informer factory is nil")
+		return nil, ErrInformerFactoryNil
 	}
 
 	if mgr == nil {
-		return nil, fmt.Errorf("transport manager is nil")
+		return nil, ErrTransportManagerNil
 	}
 
 	if dp == nil {
-		return nil, fmt.Errorf("dataplane is nil")
+		return nil, ErrDataplaneNotInitialized
 	}
 
 	if k8sServerVersion == nil {
-		return nil, fmt.Errorf("k8s server version is nil")
+		return nil, ErrK8SServerVersionNil
 	}
 
 	n := &NetworkPolicyServer{
@@ -129,15 +136,15 @@ func (n *NetworkPolicyServer) Start(config npmconfig.Config, stopCh <-chan struc
 
 	// Wait for the initial sync of local cache.
 	if !cache.WaitForCacheSync(stopCh, n.podInformer.Informer().HasSynced) {
-		return fmt.Errorf("Pod informer failed to sync")
+		return fmt.Errorf("Pod informer error: %w", ErrInformerSyncFailure)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, n.nsInformer.Informer().HasSynced) {
-		return fmt.Errorf("Namespace informer failed to sync")
+		return fmt.Errorf("Namespace informer error: %w", ErrInformerSyncFailure)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, n.npInformer.Informer().HasSynced) {
-		return fmt.Errorf("Network policy informer failed to sync")
+		return fmt.Errorf("NetworkPolicy informer error: %w", ErrInformerSyncFailure)
 	}
 
 	// start v2 NPM controllers after synced
@@ -150,5 +157,5 @@ func (n *NetworkPolicyServer) Start(config npmconfig.Config, stopCh <-chan struc
 	// This is unlike the other start methods in this package, which returns nil
 	// and blocks in the main thread during command invocation through the select {}
 	// statement.
-	return n.tm.Start(stopCh)
+	return n.tm.Start(stopCh) //nolint:wrapcheck // ignore: can't use n.tm.Start() directly
 }

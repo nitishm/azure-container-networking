@@ -19,6 +19,8 @@ import (
 	utilexec "k8s.io/utils/exec"
 )
 
+var ErrDataplaneNotInitialized = errors.New("dataplane is not initialized")
+
 // NetworkPolicyManager contains informers for pod, namespace and networkpolicy.
 type NetworkPolicyManager struct {
 	config npmconfig.Config
@@ -164,15 +166,15 @@ func (npMgr *NetworkPolicyManager) Start(config npmconfig.Config, stopCh <-chan 
 
 	// Wait for the initial sync of local cache.
 	if !cache.WaitForCacheSync(stopCh, npMgr.podInformer.Informer().HasSynced) {
-		return fmt.Errorf("Pod informer failed to sync")
+		return fmt.Errorf("Pod informer error: %w", ErrInformerSyncFailure)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, npMgr.nsInformer.Informer().HasSynced) {
-		return fmt.Errorf("Namespace informer failed to sync")
+		return fmt.Errorf("Namespace informer error: %w", ErrInformerSyncFailure)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, npMgr.npInformer.Informer().HasSynced) {
-		return fmt.Errorf("Network policy informer failed to sync")
+		return fmt.Errorf("NetworkPolicy informer error: %w", ErrInformerSyncFailure)
 	}
 
 	// start v2 NPM controllers after synced

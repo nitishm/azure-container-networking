@@ -21,13 +21,18 @@ type DataplaneEventsClient struct {
 	outCh chan *protos.Events
 }
 
+var (
+	ErrPodNodeNameNil = fmt.Errorf("pod and node name must be set")
+	ErrAddressNil     = fmt.Errorf("address must be set")
+)
+
 func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*DataplaneEventsClient, error) {
 	if pod == "" || node == "" {
-		return nil, fmt.Errorf("pod and node must be set")
+		return nil, ErrPodNodeNameNil
 	}
 
 	if addr == "" {
-		return nil, fmt.Errorf("address must be set")
+		return nil, ErrAddressNil
 	}
 
 	// TODO Make this secure
@@ -69,8 +74,8 @@ func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.Da
 	for {
 		select {
 		case <-ctx.Done():
-			klog.Errorf("context done: %v", ctx.Err())
-			return ctx.Err()
+			klog.Errorf("recevied done event on context channel: %v", ctx.Err())
+			return fmt.Errorf("recevied done event on context channel: %w", ctx.Err())
 		case <-stopCh:
 			klog.Info("Received message on stop channel. Stopping transport client")
 			return nil

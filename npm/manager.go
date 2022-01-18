@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	heartbeatIntervalInMinutes = 30
+	heartbeatIntervalInMinutes = 30 //nolint:unused,deadcode,varcheck // ignore this error
 	// TODO: consider increasing thread number later when logics are correct
 	// threadness = 1
 )
@@ -39,26 +39,26 @@ const (
 
 // K8SControllerV1 are the legacy k8s controllers
 type K8SControllersV1 struct {
-	podControllerV1       *controllersv1.PodController
-	namespaceControllerV1 *controllersv1.NamespaceController
-	npmNamespaceCacheV1   *controllersv1.NpmNamespaceCache
-	netPolControllerV1    *controllersv1.NetworkPolicyController
+	podControllerV1       *controllersv1.PodController           //nolint:structcheck //ignore this error
+	namespaceControllerV1 *controllersv1.NamespaceController     //nolint:structcheck // false lint error
+	npmNamespaceCacheV1   *controllersv1.NpmNamespaceCache       //nolint:structcheck // false lint error
+	netPolControllerV1    *controllersv1.NetworkPolicyController //nolint:structcheck // false lint error
 }
 
 // K8SControllerV2 are the optimized k8s controllers that replace the legacy controllers
 type K8SControllersV2 struct {
-	podControllerV2       *controllersv2.PodController
-	namespaceControllerV2 *controllersv2.NamespaceController
-	npmNamespaceCacheV2   *controllersv2.NpmNamespaceCache
-	netPolControllerV2    *controllersv2.NetworkPolicyController
+	podControllerV2       *controllersv2.PodController           //nolint:structcheck //ignore this error
+	namespaceControllerV2 *controllersv2.NamespaceController     //nolint:structcheck // false lint error
+	npmNamespaceCacheV2   *controllersv2.NpmNamespaceCache       //nolint:structcheck // false lint error
+	netPolControllerV2    *controllersv2.NetworkPolicyController //nolint:structcheck // false lint error
 }
 
 // Informers are the informers for the k8s controllers
 type Informers struct {
-	informerFactory informers.SharedInformerFactory
-	podInformer     coreinformers.PodInformer
-	nsInformer      coreinformers.NamespaceInformer
-	npInformer      networkinginformers.NetworkPolicyInformer
+	informerFactory informers.SharedInformerFactory           //nolint:structcheck //ignore this error
+	podInformer     coreinformers.PodInformer                 //nolint:structcheck // false lint error
+	nsInformer      coreinformers.NamespaceInformer           //nolint:structcheck // false lint error
+	npInformer      networkinginformers.NetworkPolicyInformer //nolint:structcheck // false lint error
 }
 
 // AzureConfig captures the Azure specific configurations and fields

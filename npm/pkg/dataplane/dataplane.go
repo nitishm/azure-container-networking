@@ -79,7 +79,7 @@ func (dp *DataPlane) InitializeDataPlane() error {
 func (dp *DataPlane) ResetDataPlane() error {
 	// TODO rename this function to BootupDataplane
 	// NOTE: used to create an all-namespaces set, but there's no need since it will be created by the control plane
-	return dp.bootupDataPlane()
+	return dp.bootupDataPlane() //nolint:wrapcheck // unnecessary to wrap error
 }
 
 func (dp *DataPlane) GetIPSet(setName string) *ipsets.IPSet {

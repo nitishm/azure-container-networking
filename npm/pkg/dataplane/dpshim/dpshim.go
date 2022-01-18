@@ -1,6 +1,7 @@
 package dpshim
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Azure/azure-container-networking/npm/pkg/dataplane"
@@ -14,9 +15,11 @@ type DPShim struct {
 	outChannel chan *protos.Events
 }
 
+var ErrChannelUnset = errors.New("channel must be set")
+
 func NewDPSim(outChannel chan *protos.Events) (*DPShim, error) {
 	if outChannel == nil {
-		return nil, fmt.Errorf("outChannel must be set")
+		return nil, fmt.Errorf("out channel must be set: %w", ErrChannelUnset)
 	}
 	return &DPShim{outChannel: outChannel}, nil
 }

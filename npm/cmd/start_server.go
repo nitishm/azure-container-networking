@@ -119,5 +119,5 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 
 	go restserver.NPMRestServerListenAndServe(config, npMgr)
 
-	return npMgr.Start(config, wait.NeverStop)
+	return npMgr.Start(config, wait.NeverStop) //nolint:wrapcheck // unnecessary to wrap error
 }

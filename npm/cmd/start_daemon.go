@@ -66,20 +66,20 @@ func startDataplane(config npmconfig.Config) error {
 
 	client, err := transport.NewDataplaneEventsClient(ctx, pod, node, addr)
 	if err != nil {
-		klog.Errorf("failed to create dataplane events client with error %w", err)
-		return err
+		klog.Errorf("failed to create dataplane events client with error %v", err)
+		return fmt.Errorf("failed to create dataplane events client: %w", err)
 	}
 
 	gsp, err := goalstateprocessor.NewGoalStateProcessor(ctx, node, pod, client.EventsChannel(), dp)
 	if err != nil {
-		klog.Errorf("failed to create goalstate processor with error %w", err)
-		return err
+		klog.Errorf("failed to create goalstate processor with error %v", err)
+		return fmt.Errorf("failed to create goalstate processor: %w", err)
 	}
 
 	n, err := npm.NewNetworkPolicyDaemon(ctx, config, dp, gsp, client, version)
 	if err != nil {
 		klog.Errorf("failed to create dataplane : %v", err)
-		return err
+		return fmt.Errorf("failed to create dataplane: %w", err)
 	}
 
 	n.Start(config, wait.NeverStop)

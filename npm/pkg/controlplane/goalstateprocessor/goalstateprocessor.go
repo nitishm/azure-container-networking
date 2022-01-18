@@ -13,6 +13,8 @@ import (
 	"k8s.io/klog"
 )
 
+var ErrPodOrNodeNameNil = fmt.Errorf("both pod and node name must be set")
+
 type GoalStateProcessor struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
@@ -31,7 +33,7 @@ func NewGoalStateProcessor(
 	dp dataplane.GenericDataplane) (*GoalStateProcessor, error) {
 
 	if nodeID == "" || podName == "" {
-		return nil, fmt.Errorf("nodeID and podName must be set")
+		return nil, ErrPodOrNodeNameNil
 	}
 
 	klog.Infof("Creating GoalStateProcessor for node %s", nodeID)

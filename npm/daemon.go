@@ -4,7 +4,6 @@ package npm
 
 import (
 	"context"
-	"fmt"
 
 	npmconfig "github.com/Azure/azure-container-networking/npm/config"
 	"github.com/Azure/azure-container-networking/npm/pkg/controlplane/goalstateprocessor"
@@ -30,7 +29,7 @@ func NewNetworkPolicyDaemon(
 ) (*NetworkPolicyDaemon, error) {
 
 	if dp == nil {
-		return nil, fmt.Errorf("dataplane is nil")
+		return nil, ErrDataplaneNotInitialized
 	}
 
 	return &NetworkPolicyDaemon{
@@ -44,7 +43,7 @@ func NewNetworkPolicyDaemon(
 
 func (n *NetworkPolicyDaemon) Start(config npmconfig.Config, stopCh <-chan struct{}) {
 	go n.gsp.Start(stopCh)
-	go n.client.Start(stopCh)
+	go n.client.Start(stopCh) //nolint:errcheck // this can be ignored since it is a go routine
 	<-stopCh
 }
 
