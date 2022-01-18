@@ -79,9 +79,6 @@ func (gsp *GoalStateProcessor) run(stopCh <-chan struct{}) {
 
 func (gsp *GoalStateProcessor) processNext() {
 	select {
-	case <-gsp.ctx.Done():
-		klog.Infof("GoalStateProcessor for node %s stopped", gsp.nodeID)
-		return
 	case inputEvents := <-gsp.inputChannel:
 		// TODO remove this large print later
 		klog.Infof("Received event %s", inputEvents)

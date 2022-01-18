@@ -67,7 +67,9 @@ func (c *DataplaneEventsClient) Start(stopCh <-chan struct{}) error {
 		return fmt.Errorf("failed to connect to dataplane events server: %w", err)
 	}
 
-	return c.run(c.ctx, connectClient, stopCh)
+	go c.run(c.ctx, connectClient, stopCh) //nolint:errcheck // ignore error since this is a go routine
+
+	return nil
 }
 
 func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient, stopCh <-chan struct{}) error {

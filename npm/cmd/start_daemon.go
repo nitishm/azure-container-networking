@@ -23,10 +23,10 @@ const (
 	nodeNameEnv = "DAEMON_NODE_NAME"
 )
 
-func newStartNPMDataplaneCmd() *cobra.Command {
-	startNPMDataplaneCmd := &cobra.Command{
-		Use:   "dataplane",
-		Short: "Starts the Azure NPM dataplane process",
+func newStartNPMDaemonCmd() *cobra.Command {
+	startNPMDaemonCmd := &cobra.Command{
+		Use:   "daemon",
+		Short: "Starts the Azure NPM daemon process",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config := &npmconfig.Config{}
 			err := viper.Unmarshal(config)
@@ -34,14 +34,14 @@ func newStartNPMDataplaneCmd() *cobra.Command {
 				return fmt.Errorf("failed to load config with error: %w", err)
 			}
 
-			return startDataplane(*config)
+			return startDaemon(*config)
 		},
 	}
 
-	return startNPMDataplaneCmd
+	return startNPMDaemonCmd
 }
 
-func startDataplane(config npmconfig.Config) error {
+func startDaemon(config npmconfig.Config) error {
 	klog.Infof("loaded config: %+v", config)
 	klog.Infof("Start NPM version: %s", version)
 	// Read these ENV variables from the Pod spec `env` section.
@@ -82,7 +82,10 @@ func startDataplane(config npmconfig.Config) error {
 		return fmt.Errorf("failed to create dataplane: %w", err)
 	}
 
-	n.Start(config, wait.NeverStop)
-
+	err = n.Start(config, wait.NeverStop)
+	if err != nil {
+		klog.Errorf("failed to start dataplane : %v", err)
+		return fmt.Errorf("failed to start dataplane: %w", err)
+	}
 	return nil
 }

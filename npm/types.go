@@ -3,8 +3,8 @@
 package npm
 
 import (
-	"os"
-
+	npmconfig "github.com/Azure/azure-container-networking/npm/config"
+	"github.com/Azure/azure-container-networking/npm/ipsm"
 	controllersv1 "github.com/Azure/azure-container-networking/npm/pkg/controlplane/controllers/v1"
 	controllersv2 "github.com/Azure/azure-container-networking/npm/pkg/controlplane/controllers/v2"
 	"github.com/pkg/errors"
@@ -19,23 +19,31 @@ var (
 	errMarshalNPMCache = errors.New("failed to marshal NPM Cache")
 )
 
-const (
-	heartbeatIntervalInMinutes = 30 //nolint:unused,deadcode,varcheck // ignore this error
-	// TODO: consider increasing thread number later when logics are correct
-	// threadness = 1
-)
+// NetworkPolicyManager contains informers for pod, namespace and networkpolicy.
+type NetworkPolicyManager struct {
+	config npmconfig.Config
 
+	// ipsMgr are shared in all controllers. Thus, only one ipsMgr is created for simple management
+	// and uses lock to avoid unintentional race condictions in IpsetManager.
+	ipsMgr *ipsm.IpsetManager
+
+	// Informers are the Kubernetes Informer
+	// https://pkg.go.dev/k8s.io/client-go/informers
+	Informers
+
+	// Legacy controllers for handling Kubernetes resource watcher events
+	// To be deprecated
+	K8SControllersV1
+
+	// Controllers for handling Kubernetes resource watcher events
+	K8SControllersV2
+
+	// Azure-specific variables
+	AzureConfig
+}
+
+// Cache is the cache lookup key for the NPM cache
 type CacheKey string
-
-// NPMCache Key Contract for Json marshal and unmarshal
-const (
-	NodeName    CacheKey = "NodeName"
-	NsMap       CacheKey = "NsMap"
-	PodMap      CacheKey = "PodMap"
-	ListMap     CacheKey = "ListMap"
-	SetMap      CacheKey = "SetMap"
-	EnvNodeName          = "HOSTNAME"
-)
 
 // K8SControllerV1 are the legacy k8s controllers
 type K8SControllersV1 struct {
@@ -67,14 +75,4 @@ type AzureConfig struct {
 	NodeName         string
 	version          string
 	TelemetryEnabled bool
-}
-
-// GetAIMetadata returns ai metadata number
-func GetAIMetadata() string {
-	return aiMetadata
-}
-
-func GetNodeName() string {
-	nodeName := os.Getenv(EnvNodeName)
-	return nodeName
 }

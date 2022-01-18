@@ -5,6 +5,7 @@ package npm
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	npmconfig "github.com/Azure/azure-container-networking/npm/config"
 	"github.com/Azure/azure-container-networking/npm/ipsm"
@@ -20,29 +21,6 @@ import (
 )
 
 var ErrDataplaneNotInitialized = errors.New("dataplane is not initialized")
-
-// NetworkPolicyManager contains informers for pod, namespace and networkpolicy.
-type NetworkPolicyManager struct {
-	config npmconfig.Config
-
-	// ipsMgr are shared in all controllers. Thus, only one ipsMgr is created for simple management
-	// and uses lock to avoid unintentional race condictions in IpsetManager.
-	ipsMgr *ipsm.IpsetManager
-
-	// Informers are the Kubernetes Informer
-	// https://pkg.go.dev/k8s.io/client-go/informers
-	Informers
-
-	// Legacy controllers for handling Kubernetes resource watcher events
-	// To be deprecated
-	K8SControllersV1
-
-	// Controllers for handling Kubernetes resource watcher events
-	K8SControllersV2
-
-	// Azure-specific variables
-	AzureConfig
-}
 
 // NewNetworkPolicyManager creates a NetworkPolicyManager
 func NewNetworkPolicyManager(config npmconfig.Config,
@@ -192,4 +170,14 @@ func (npMgr *NetworkPolicyManager) Start(config npmconfig.Config, stopCh <-chan 
 	go npMgr.netPolControllerV1.RunPeriodicTasks(stopCh)
 
 	return nil
+}
+
+// GetAIMetadata returns ai metadata number
+func GetAIMetadata() string {
+	return aiMetadata
+}
+
+func GetNodeName() string {
+	nodeName := os.Getenv(EnvNodeName)
+	return nodeName
 }

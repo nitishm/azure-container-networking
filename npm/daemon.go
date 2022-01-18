@@ -4,6 +4,7 @@ package npm
 
 import (
 	"context"
+	"fmt"
 
 	npmconfig "github.com/Azure/azure-container-networking/npm/config"
 	"github.com/Azure/azure-container-networking/npm/pkg/controlplane/goalstateprocessor"
@@ -41,10 +42,13 @@ func NewNetworkPolicyDaemon(
 	}, nil
 }
 
-func (n *NetworkPolicyDaemon) Start(config npmconfig.Config, stopCh <-chan struct{}) {
-	go n.gsp.Start(stopCh)
-	go n.client.Start(stopCh) //nolint:errcheck // this can be ignored since it is a go routine
+func (n *NetworkPolicyDaemon) Start(config npmconfig.Config, stopCh <-chan struct{}) error {
+	n.gsp.Start(stopCh)
+	if err := n.client.Start(stopCh); err != nil {
+		return fmt.Errorf("failed to start dataplane events client: %w", err)
+	}
 	<-stopCh
+	return nil
 }
 
 func (n *NetworkPolicyDaemon) GetAppVersion() string {

@@ -86,7 +86,7 @@ func newStartNPMCmd() *cobra.Command {
 	startNPMCmd.Flags().String(flagKubeConfigPath, flagDefaults[flagKubeConfigPath], "path to kubeconfig")
 
 	startNPMCmd.AddCommand(newStartNPMControlplaneCmd())
-	startNPMCmd.AddCommand(newStartNPMDataplaneCmd())
+	startNPMCmd.AddCommand(newStartNPMDaemonCmd())
 
 	return startNPMCmd
 }
