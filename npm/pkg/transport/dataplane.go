@@ -83,7 +83,7 @@ func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.Da
 			event, err := connectClient.Recv()
 			if err != nil {
 				klog.Errorf("failed to receive event: %v", err)
-				return err
+				return fmt.Errorf("failed to receive event: %w", err)
 			}
 
 			c.outCh <- event
