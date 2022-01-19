@@ -23,15 +23,6 @@ const (
 	DeletedFinalStateknownObject   IsDeletedFinalStateUnknownObject = false
 )
 
-// func getKey(obj interface{}, t *testing.T) string {
-// 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-// 	if err != nil {
-// 		t.Errorf("Unexpected error getting key for obj %v: %v", obj, err)
-// 		return ""
-// 	}
-// 	return key
-// }
-
 func TestMarshalJSONForNilValues(t *testing.T) {
 	npMgr := &NetworkPolicyManager{}
 	npmCacheRaw, err := npMgr.MarshalJSON()
