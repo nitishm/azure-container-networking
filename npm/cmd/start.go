@@ -140,11 +140,13 @@ func start(config npmconfig.Config, flags npmconfig.Flags) error {
 	k8sServerVersion := k8sServerVersion(clientset)
 
 	var dp dataplane.GenericDataplane
+	stopChannel := wait.NeverStop
 	if config.Toggles.EnableV2NPM {
-		dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim(), npmV2DataplaneCfg)
+		dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim(), npmV2DataplaneCfg, stopChannel)
 		if err != nil {
 			return fmt.Errorf("failed to create dataplane with error %w", err)
 		}
+		dp.RunPeriodicTasks()
 	}
 	npMgr := npm.NewNetworkPolicyManager(config, factory, dp, exec.New(), version, k8sServerVersion)
 	err = metrics.CreateTelemetryHandle(version, npm.GetAIMetadata())
@@ -155,7 +157,7 @@ func start(config npmconfig.Config, flags npmconfig.Flags) error {
 
 	go restserver.NPMRestServerListenAndServe(config, npMgr)
 
-	if err = npMgr.Start(config, wait.NeverStop); err != nil {
+	if err = npMgr.Start(config, stopChannel); err != nil {
 		metrics.SendErrorLogAndMetric(util.NpmID, "Failed to start NPM due to %+v", err)
 		return fmt.Errorf("failed to start with err: %w", err)
 	}

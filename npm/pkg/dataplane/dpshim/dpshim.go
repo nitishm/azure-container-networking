@@ -32,6 +32,8 @@ func (dp *DPShim) ResetDataPlane() error {
 	return nil
 }
 
+func (dp *DPShim) RunPeriodicTasks() {}
+
 func (dp *DPShim) GetIPSet(setName string) *ipsets.IPSet {
 	return nil
 }
