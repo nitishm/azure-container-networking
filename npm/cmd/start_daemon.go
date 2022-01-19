@@ -58,7 +58,7 @@ func startDaemon(config npmconfig.Config) error {
 
 	var dp dataplane.GenericDataplane
 
-	dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim(), npmV2DataplaneCfg)
+	dp, err = dataplane.NewDataPlane(npm.GetNodeName(), common.NewIOShim(), npmV2DataplaneCfg, wait.NeverStop)
 	if err != nil {
 		klog.Errorf("failed to create dataplane: %v", err)
 		return fmt.Errorf("failed to create dataplane with error %w", err)
