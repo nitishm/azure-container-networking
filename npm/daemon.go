@@ -15,7 +15,7 @@ import (
 type NetworkPolicyDaemon struct {
 	ctx     context.Context
 	config  npmconfig.Config
-	client  *transport.DataplaneEventsClient
+	client  *transport.EventsClient
 	version string
 	gsp     *goalstateprocessor.GoalStateProcessor
 }
@@ -25,7 +25,7 @@ func NewNetworkPolicyDaemon(
 	config npmconfig.Config,
 	dp dataplane.GenericDataplane,
 	gsp *goalstateprocessor.GoalStateProcessor,
-	client *transport.DataplaneEventsClient,
+	client *transport.EventsClient,
 	npmVersion string,
 ) (*NetworkPolicyDaemon, error) {
 

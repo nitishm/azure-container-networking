@@ -64,7 +64,7 @@ func startDaemon(config npmconfig.Config) error {
 		return fmt.Errorf("failed to create dataplane with error %w", err)
 	}
 
-	client, err := transport.NewDataplaneEventsClient(ctx, pod, node, addr)
+	client, err := transport.NewEventsClient(ctx, pod, node, addr)
 	if err != nil {
 		klog.Errorf("failed to create dataplane events client with error %v", err)
 		return fmt.Errorf("failed to create dataplane events client: %w", err)

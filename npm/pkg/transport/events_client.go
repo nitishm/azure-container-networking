@@ -9,8 +9,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// DataplaneEventsClient is a client for the DataplaneEvents service
-type DataplaneEventsClient struct {
+// EventsClient is a client for the DataplaneEvents service
+type EventsClient struct {
 	ctx context.Context
 
 	protos.DataplaneEventsClient
@@ -26,7 +26,7 @@ var (
 	ErrAddressNil     = fmt.Errorf("address must be set")
 )
 
-func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*DataplaneEventsClient, error) {
+func NewEventsClient(ctx context.Context, pod, node, addr string) (*EventsClient, error) {
 	if pod == "" || node == "" {
 		return nil, ErrPodNodeNameNil
 	}
@@ -41,7 +41,7 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 		return nil, fmt.Errorf("failed to dial %s: %w", addr, err)
 	}
 
-	return &DataplaneEventsClient{
+	return &EventsClient{
 		ctx:                   ctx,
 		DataplaneEventsClient: protos.NewDataplaneEventsClient(cc),
 		pod:                   pod,
@@ -51,11 +51,11 @@ func NewDataplaneEventsClient(ctx context.Context, pod, node, addr string) (*Dat
 	}, nil
 }
 
-func (c *DataplaneEventsClient) EventsChannel() chan *protos.Events {
+func (c *EventsClient) EventsChannel() chan *protos.Events {
 	return c.outCh
 }
 
-func (c *DataplaneEventsClient) Start(stopCh <-chan struct{}) error {
+func (c *EventsClient) Start(stopCh <-chan struct{}) error {
 	clientMetadata := &protos.DatapathPodMetadata{
 		PodName:  c.pod,
 		NodeName: c.node,
@@ -72,7 +72,7 @@ func (c *DataplaneEventsClient) Start(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *DataplaneEventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient, stopCh <-chan struct{}) error {
+func (c *EventsClient) run(ctx context.Context, connectClient protos.DataplaneEvents_ConnectClient, stopCh <-chan struct{}) error {
 	for {
 		select {
 		case <-ctx.Done():
