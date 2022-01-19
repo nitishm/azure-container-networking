@@ -21,7 +21,7 @@ type NetworkPolicyServer struct {
 	config npmconfig.Config
 
 	// tm is the transport layer (gRPC) manager/server
-	tm *transport.Manager
+	tm *transport.GrpcManager
 
 	// Informers are the Kubernetes Informer
 	// https://pkg.go.dev/k8s.io/client-go/informers
@@ -44,7 +44,7 @@ var (
 func NewNetworkPolicyServer(
 	config npmconfig.Config,
 	informerFactory informers.SharedInformerFactory,
-	mgr *transport.Manager,
+	mgr *transport.GrpcManager,
 	dp dataplane.GenericDataplane,
 	npmVersion string,
 	k8sServerVersion *version.Info,

@@ -97,7 +97,7 @@ func startControlplane(config npmconfig.Config, flags npmconfig.Flags) error {
 
 	var dp dataplane.GenericDataplane
 
-	mgr := transport.NewManager(context.Background(), config.Transport.Port)
+	mgr := transport.NewGrpcManager(context.Background(), config.Transport.Port)
 
 	dp, err = dpshim.NewDPSim(mgr.InputChannel())
 	if err != nil {

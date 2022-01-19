@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type Manager struct {
+type GrpcManager struct {
 	ctx context.Context
 
 	// Server is the gRPC server
@@ -46,14 +46,14 @@ type Manager struct {
 }
 
 // New creates a new transport manager
-func NewManager(ctx context.Context, port int) *Manager {
+func NewGrpcManager(ctx context.Context, port int) *GrpcManager {
 	// Create a registration channel
 	regCh := make(chan clientStreamConnection, grpcMaxConcurrentStreams)
 
 	// Create a deregistration channel
 	deregCh := make(chan deregistrationEvent, grpcMaxConcurrentStreams)
 
-	return &Manager{
+	return &GrpcManager{
 		ctx:           ctx,
 		Server:        NewServer(ctx, regCh),
 		Watchdog:      NewWatchdog(deregCh),
@@ -67,11 +67,11 @@ func NewManager(ctx context.Context, port int) *Manager {
 }
 
 // InputChannel returns the input channel for the manager
-func (m *Manager) InputChannel() chan *protos.Events {
+func (m *GrpcManager) InputChannel() chan *protos.Events {
 	return m.inCh
 }
 
-func (m *Manager) Start(stopCh <-chan struct{}) error {
+func (m *GrpcManager) Start(stopCh <-chan struct{}) error {
 	klog.Info("Starting transport manager")
 	if err := m.start(stopCh); err != nil {
 		klog.Errorf("Failed to Start transport manager: %v", err)
@@ -80,7 +80,7 @@ func (m *Manager) Start(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (m *Manager) start(stopCh <-chan struct{}) error {
+func (m *GrpcManager) start(stopCh <-chan struct{}) error {
 	if err := m.handle(); err != nil {
 		return fmt.Errorf("failed to start transport manager handlers: %w", err)
 	}
@@ -131,7 +131,7 @@ func (m *Manager) start(stopCh <-chan struct{}) error {
 	}
 }
 
-func (m *Manager) handle() error {
+func (m *GrpcManager) handle() error {
 	klog.Info("Starting transport manager listener")
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", m.port))
 	if err != nil {
