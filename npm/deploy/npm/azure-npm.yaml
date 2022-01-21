@@ -99,18 +99,12 @@ spec:
           volumeMounts:
           - name: xtables-lock
             mountPath: /run/xtables.lock
-          - name: log
-            mountPath: /var/log
           - name: protocols
             mountPath: /etc/protocols
           - name: azure-npm-config
             mountPath: /etc/azure-npm
       hostNetwork: true
       volumes:
-      - name: log
-        hostPath:
-          path: /var/log
-          type: Directory
       - name: xtables-lock
         hostPath:
           path: /run/xtables.lock
