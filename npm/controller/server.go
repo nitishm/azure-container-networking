@@ -18,7 +18,7 @@ import (
 	"k8s.io/klog"
 )
 
-var aiMetadata string
+var aiMetadata string //nolint // aiMetadata is set in Makefile
 
 type NetworkPolicyServer struct {
 	config npmconfig.Config

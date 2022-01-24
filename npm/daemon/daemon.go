@@ -13,7 +13,7 @@ import (
 	"github.com/Azure/azure-container-networking/npm/pkg/transport"
 )
 
-var aiMetadata string
+var aiMetadata string //nolint // aiMetadata is set in Makefile
 
 var ErrDataplaneNotInitialized = errors.New("dataplane is not initialized")
 

@@ -20,7 +20,7 @@ import (
 	utilexec "k8s.io/utils/exec"
 )
 
-var aiMetadata string
+var aiMetadata string //nolint // aiMetadata is set in Makefile
 
 // NetworkPolicyManager contains informers for pod, namespace and networkpolicy.
 type NetworkPolicyManager struct {
