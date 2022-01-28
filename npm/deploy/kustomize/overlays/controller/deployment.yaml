@@ -1,4 +1,3 @@
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,11 +51,17 @@ spec:
             - name: NPM_CONFIG
               value: /etc/azure-npm/azure-npm.json
           volumeMounts:
+          - name: log
+            mountPath: /var/log
           - name: protocols
             mountPath: /etc/protocols
           - name: azure-npm-config
             mountPath: /etc/azure-npm
       volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory
       - name: protocols
         hostPath:
           path: /etc/protocols

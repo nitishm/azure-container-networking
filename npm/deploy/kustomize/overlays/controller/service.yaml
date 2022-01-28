@@ -13,4 +13,22 @@ spec:
     component: controller
   ports:
     - port: 9000
+      name: metrics
       targetPort: 10091
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-npm
+  namespace: kube-system
+  labels:
+    app: azure-npm 
+    component: controller
+spec:
+  selector:
+    k8s-app: azure-npm
+    component: controller
+  ports:
+    - port: 9001
+      name: metrics
+      targetPort: 10092

@@ -59,6 +59,8 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
           volumeMounts:
+          - name: log
+            mountPath: /var/log
           - name: xtables-lock
             mountPath: /run/xtables.lock
           - name: protocols
@@ -67,6 +69,10 @@ spec:
             mountPath: /etc/azure-npm
       hostNetwork: true
       volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory
       - name: xtables-lock
         hostPath:
           path: /run/xtables.lock
