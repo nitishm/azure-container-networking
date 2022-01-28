@@ -3,15 +3,16 @@ package policies
 // This file contains code for booting up and reconciling iptables
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/npm/metrics"
-	"github.com/Azure/azure-container-networking/npm/pkg/dataplane/ioutil"
 	"github.com/Azure/azure-container-networking/npm/util"
 	npmerrors "github.com/Azure/azure-container-networking/npm/util/errors"
+	"github.com/Azure/azure-container-networking/npm/util/ioutil"
 	"k8s.io/klog"
 	utilexec "k8s.io/utils/exec"
 )
@@ -23,12 +24,8 @@ const (
 	doesNotExistErrorCode      int = 1 // Bad rule (does a matching rule exist in that chain?)
 	couldntLoadTargetErrorCode int = 2 // Couldn't load target `AZURE-NPM-EGRESS':No such file or directory
 
-	minLineNumberStringLength int = 3 // TODO transferred from iptm.go and not sure why this length is important, but will update the function its used in later anyways
-
-	azureChainGrepPattern   string = "Chain AZURE-NPM"
-	minAzureChainNameLength int    = len("AZURE-NPM")
-	// the minimum number of sections when "Chain NAME (1 references)" is split on spaces (" ")
-	minSpacedSectionsForChainLine int = 2
+	// transferred from iptm.go and not sure why this length is important
+	minLineNumberStringLength int = 3
 )
 
 var (
@@ -53,7 +50,9 @@ var (
 		util.IptablesNewState,
 	}
 
-	errInvalidGrepResult                      = errors.New("unexpectedly got no lines while grepping for current Azure chains")
+	spaceByte                                 = []byte(" ")
+	errNoLineNumber                           = errors.New("no line number found")
+	errUnexpectedLineNumberString             = errors.New("unexpected line number string")
 	deprecatedJumpFromForwardToAzureChainArgs = []string{
 		util.IptablesForwardChain,
 		util.IptablesJumpFlag,
@@ -170,7 +169,7 @@ func (pMgr *PolicyManager) bootup(_ []string) error {
 		}
 	}
 
-	currentChains, err := pMgr.allCurrentAzureChains()
+	currentChains, err := ioutil.AllCurrentAzureChains(pMgr.ioShim.Exec, defaultlockWaitTimeInSeconds)
 	if err != nil {
 		return npmerrors.SimpleErrorWrapper("failed to get current chains for bootup", err)
 	}
@@ -380,49 +379,17 @@ func (pMgr *PolicyManager) chainLineNumber(chain string) (int, error) {
 		return 0, nil
 	}
 	if len(searchResults) >= minLineNumberStringLength {
-		lineNum, _ := strconv.Atoi(string(searchResults[0])) // FIXME this returns the first digit of the line number. What if the chain was at line 11? Then we would think it's at line 1
-		return lineNum, nil
-	}
-	return 0, nil
-}
-
-func (pMgr *PolicyManager) allCurrentAzureChains() (map[string]struct{}, error) {
-	iptablesListCommand := pMgr.ioShim.Exec.Command(util.Iptables,
-		util.IptablesWaitFlag, defaultlockWaitTimeInSeconds, util.IptablesTableFlag, util.IptablesFilterTable,
-		util.IptablesNumericFlag, util.IptablesListFlag,
-	)
-	grepCommand := pMgr.ioShim.Exec.Command(ioutil.Grep, azureChainGrepPattern)
-	searchResults, gotMatches, err := ioutil.PipeCommandToGrep(iptablesListCommand, grepCommand)
-	if err != nil {
-		return nil, npmerrors.SimpleErrorWrapper("failed to get policy chain names", err)
-	}
-	if !gotMatches {
-		return nil, nil
-	}
-	lines := strings.Split(string(searchResults), "\n")
-	if len(lines) == 1 && lines[0] == "" {
-		// this should never happen: gotMatches is true, but there is no content in the searchResults
-		return nil, errInvalidGrepResult
-	}
-	lastIndex := len(lines) - 1
-	lastLine := lines[lastIndex]
-	if lastLine == "" {
-		// remove the last empty line (since each line ends with a newline)
-		lines = lines[:lastIndex] // this line doesn't impact the array that the slice references
-	} else {
-		klog.Errorf(`while grepping for current Azure chains, expected last line to end in "" but got [%s]. full grep output: [%s]`, lastLine, string(searchResults))
-	}
-	chainNames := make(map[string]struct{}, len(lines))
-	for _, line := range lines {
-		// line of the form "Chain NAME (1 references)"
-		spaceSeparatedLine := strings.Split(line, " ")
-		if len(spaceSeparatedLine) < minSpacedSectionsForChainLine || len(spaceSeparatedLine[1]) < minAzureChainNameLength {
-			klog.Errorf("while grepping for current Azure chains, got unexpected line [%s] for all current azure chains. full grep output: [%s]", line, string(searchResults))
-		} else {
-			chainNames[spaceSeparatedLine[1]] = struct{}{}
+		firstSpaceIndex := bytes.Index(searchResults, spaceByte)
+		if firstSpaceIndex > 0 && firstSpaceIndex < len(searchResults) {
+			lineNumberString := string(searchResults[0:firstSpaceIndex])
+			lineNum, err := strconv.Atoi(lineNumberString)
+			if err != nil {
+				return 0, errNoLineNumber
+			}
+			return lineNum, nil
 		}
 	}
-	return chainNames, nil
+	return 0, errUnexpectedLineNumberString
 }
 
 func onMarkSpecs(mark string) []string {
