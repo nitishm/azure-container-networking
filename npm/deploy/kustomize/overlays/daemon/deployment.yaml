@@ -31,7 +31,7 @@ spec:
         operator: Exists
       containers:
         - name: azure-npm
-          image: mcr.microsoft.com/containernetworking/azure-npm:v1.4.1
+          image: azure-npm:v1.4.1
           command: ["azure-npm"]
           args: ["start", "daemon"]
           resources:

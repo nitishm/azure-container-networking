@@ -64,9 +64,8 @@ data:
             "PlaceAzureChainFirst":    false
         },
         "Transport": {
-          "Address": "azure-npm.kube-system.svc.cluster.local"
-          # "Port": 10092
-          "Port": 9001
+          "Address": "azure-npm.kube-system.svc.cluster.local",
+          "Port": 10092
         }
     }
 kind: ConfigMap
@@ -135,7 +134,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: mcr.microsoft.com/containernetworking/azure-npm:v1.4.1
+        image: azure-npm:v1.4.1
         name: azure-npm
         resources:
           limits:
