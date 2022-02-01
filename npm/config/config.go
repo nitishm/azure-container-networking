@@ -1,9 +1,10 @@
 package npmconfig
 
 const (
-	defaultResyncPeriod  = 15
-	defaultListeningPort = 10091
-	defaultGrpcPort      = 10092
+	defaultResyncPeriod   = 15
+	defaultListeningPort  = 10091
+	defaultGrpcPort       = 10092
+	defaultGrpcRemotePort = 9002
 	// ConfigEnvPath is what's used by viper to load config path
 	ConfigEnvPath = "NPM_CONFIG"
 )
@@ -35,6 +36,8 @@ type GrpcServerConfig struct {
 	Address string `json:"Address,omitempty"`
 	// Port is the port on which the gRPC server will listen
 	Port int `json:"Port,omitempty"`
+	// RemotePort is the service port for the client to connect
+	RemotePort int `json="RemotePort,omitempty"`
 }
 
 type Config struct {

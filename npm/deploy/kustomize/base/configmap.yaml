@@ -19,6 +19,7 @@ data:
         },
         "Transport": {
           "Address": "azure-npm.kube-system.svc.cluster.local"
-          "Port": 10092
+          "Port": 10092,
+          "RemotePort": 9002
         }
     }

@@ -65,7 +65,8 @@ data:
         },
         "Transport": {
           "Address": "azure-npm.kube-system.svc.cluster.local",
-          "Port": 10092
+          "Port": 10092,
+          "RemotePort": 9002
         }
     }
 kind: ConfigMap
@@ -126,11 +127,11 @@ spec:
               fieldPath: spec.nodeName
         - name: NPM_CONFIG
           value: /etc/azure-npm/azure-npm.json
-        - name: DEAMON_POD_NAME
+        - name: DAEMON_POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: DEAMON_NODE_NAME
+        - name: DAEMON_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
