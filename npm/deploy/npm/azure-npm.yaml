@@ -155,5 +155,10 @@ data:
             "EnableHTTPDebugAPI":      true,
             "EnableV2NPM":             false,
             "PlaceAzureChainFirst":    false
+        },
+        "Transport": {
+          "Address":    "azure-npm.kube-system.svc.cluster.local",
+          "Port":       19002,
+          "ServicePort": 9001
         }
     }

@@ -66,7 +66,7 @@ data:
         "Transport": {
           "Address": "azure-npm.kube-system.svc.cluster.local",
           "Port":    19002,
-          "RemotePort": 9002
+          "ServicePort": 9001
         }
     }
 kind: ConfigMap
@@ -84,7 +84,7 @@ metadata:
   namespace: kube-system
 spec:
   ports:
-  - name: metrics
+  - name: http 
     port: 9001
     targetPort: 10092
   selector:
@@ -135,6 +135,11 @@ spec:
       - args:
         - start
         - controlplane 
+        ports:
+        - name: metrics
+          containerPort: 10091 
+        - name: http
+          containerPort: 10092 
         command:
         - azure-npm
         env:

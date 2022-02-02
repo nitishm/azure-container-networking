@@ -49,7 +49,7 @@ func startDaemon(config npmconfig.Config) error {
 	pod := os.Getenv(podNameEnv)
 	node := os.Getenv(nodeNameEnv)
 
-	addr := config.Transport.Address + ":" + strconv.Itoa(config.Transport.RemotePort)
+	addr := config.Transport.Address + ":" + strconv.Itoa(config.Transport.ServicePort)
 	ctx := context.Background()
 	err := initLogging()
 	if err != nil {

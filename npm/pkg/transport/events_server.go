@@ -135,7 +135,7 @@ func (m *EventsServer) start(stopCh <-chan struct{}) error {
 
 func (m *EventsServer) handle() error {
 	klog.Infof("Starting transport manager listener on port %v", m.port)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", m.port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", m.port))
 	if err != nil {
 		return fmt.Errorf("failed to handle server connections: %w", err)
 	}

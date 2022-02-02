@@ -11,5 +11,6 @@ spec:
     k8s-app: azure-npm
     component: deamon
   ports:
-    - port: 9000
-      targetPort: 10091
+  - name: metrics 
+    port: 9000
+    targetPort: 10091

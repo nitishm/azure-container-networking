@@ -1,4 +1,4 @@
-allow_k8s_contexts('acn-dev-azure-cni')
+allow_k8s_contexts(k8s_context())
 default_registry('ttl.sh/nitishm-12390')
 docker_build('azure-npm', '.', dockerfile='npm/Dockerfile', build_args = {
 	"VERSION": "v1.4.14-101-gf900e319-dirty",
@@ -7,4 +7,5 @@ docker_build('azure-npm', '.', dockerfile='npm/Dockerfile', build_args = {
 })
 # watch_file('npm')
 k8s_yaml('npm/deploy/manifests/controller/azure-npm.yaml')
+k8s_yaml('npm/deploy/manifests/daemon/azure-npm.yaml', allow_duplicates=True)
 
