@@ -17,8 +17,9 @@ var DefaultConfig = Config{
 	ListeningAddress: "0.0.0.0",
 
 	Transport: GrpcServerConfig{
-		Address: "0.0.0.0",
-		Port:    defaultGrpcPort,
+		Address:    "0.0.0.0",
+		Port:       defaultGrpcPort,
+		RemotePort: defaultGrpcRemotePort,
 	},
 
 	Toggles: Toggles{
@@ -36,8 +37,8 @@ type GrpcServerConfig struct {
 	Address string `json:"Address,omitempty"`
 	// Port is the port on which the gRPC server will listen
 	Port int `json:"Port,omitempty"`
-	// RemotePort is the service port for the client to connect
-	RemotePort int `json="RemotePort,omitempty"`
+	// RemotePort is the service port for the client to connect to the gRPC server
+	RemotePort int `json:"RemotePort,omitempty"`
 }
 
 type Config struct {
