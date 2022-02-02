@@ -1,22 +1,70 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: azure-npm
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: EnsureExists
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: azure-npm
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: EnsureExists
+rules:
+  - apiGroups:
+    - ""
+    resources:
+      - pods
+      - nodes
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+    - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding  
+metadata:
+  name: azure-npm-binding
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: EnsureExists
+subjects:
+  - kind: ServiceAccount
+    name: azure-npm
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: azure-npm
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: azure-npm-deamon
+  name: azure-npm
   namespace: kube-system
   labels:
     app: azure-npm
-    component: daemon
     addonmanager.kubernetes.io/mode: EnsureExists
 spec:
   selector:
     matchLabels:
       k8s-app: azure-npm
-      component: daemon
   template:
     metadata:
       labels:
         k8s-app: azure-npm
-        component: daemon
       annotations:
         scheduler.alpha.kubernetes.io/critical-pod: ''
         azure.npm/scrapeable: ''
@@ -31,12 +79,7 @@ spec:
         operator: Exists
       containers:
         - name: azure-npm
-          ports:
-          - name: metrics
-            containerPort: 10091
-          image: azure-npm:v1.4.1
-          command: ["azure-npm"]
-          args: ["start", "daemon"]
+          image: mcr.microsoft.com/containernetworking/azure-npm:v1.4.1
           resources:
             limits:
               cpu: 250m
@@ -53,14 +96,6 @@ spec:
                   fieldPath: spec.nodeName
             - name: NPM_CONFIG
               value: /etc/azure-npm/azure-npm.json
-            - name: DEAMON_POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: DEAMON_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
           volumeMounts:
           - name: log
             mountPath: /var/log
@@ -88,3 +123,37 @@ spec:
         configMap:
           name: azure-npm-config
       serviceAccountName: azure-npm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: npm-metrics-cluster-service
+  namespace: kube-system
+  labels:
+    app: npm-metrics
+spec:
+  selector:
+    k8s-app: azure-npm
+  ports:
+    - port: 9000
+      targetPort: 10091
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-npm-config
+  namespace: kube-system
+data:
+  azure-npm.json: |
+    {
+        "ResyncPeriodInMinutes": 15,
+        "ListeningPort":         10091,
+        "ListeningAddress":      "0.0.0.0",
+        "Toggles": {
+            "EnablePrometheusMetrics": true,
+            "EnablePprof":             true,
+            "EnableHTTPDebugAPI":      true,
+            "EnableV2NPM":             false,
+            "PlaceAzureChainFirst":    false
+        }
+    }

@@ -29,6 +29,6 @@ spec:
     k8s-app: azure-npm
     component: controller
   ports:
-    - port: 9001
-      name: metrics
-      targetPort: 10092
+  - name: http 
+    port: 9001
+    targetPort: 10092

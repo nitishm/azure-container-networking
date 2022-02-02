@@ -164,7 +164,7 @@ jobs:
         chmod +x kubectl
 
         # deploy azure-npm
-        ./kubectl --kubeconfig=./kubeconfig apply -f https://raw.githubusercontent.com/Azure/azure-container-networking/master/npm/deploy/npm/azure-npm.yaml
+        ./kubectl --kubeconfig=./kubeconfig apply -f https://raw.githubusercontent.com/Azure/azure-container-networking/master/npm/azure-npm.yaml
 
         # swap azure-npm image with one built during run
         ./kubectl --kubeconfig=./kubeconfig set image daemonset/azure-npm -n kube-system azure-npm=$IMAGE_REGISTRY/azure-npm:$(TAG)

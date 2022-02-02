@@ -48,9 +48,9 @@ jobs:
         # set the ConfigMap based on the build matrix
         # currently have to restart the daemonset because changing the ConfigMap doesn't restart NPM
         run: |
-          sed -i 's/mcr.microsoft.com\/containernetworking\/azure-npm:.*/acnpublic.azurecr.io\/azure-npm:cyclonus/' ./npm/deploy/npm/azure-npm.yaml
+          sed -i 's/mcr.microsoft.com\/containernetworking\/azure-npm:.*/acnpublic.azurecr.io\/azure-npm:cyclonus/' ./npm/azure-npm.yaml
           kind load docker-image acnpublic.azurecr.io/azure-npm:cyclonus --name npm-kind
-          kubectl apply -f ./npm/deploy/npm/azure-npm.yaml
+          kubectl apply -f ./npm/azure-npm.yaml
           echo "Applying profile: ${{ matrix.profile }}"
           kubectl apply -f ./npm/profiles/${{ matrix.profile }}
           kubectl rollout restart ds azure-npm -n kube-system
