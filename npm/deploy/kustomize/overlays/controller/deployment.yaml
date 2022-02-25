@@ -56,6 +56,8 @@ spec:
             - name: NPM_CONFIG
               value: /etc/azure-npm/azure-npm.json
           volumeMounts:
+          - name: certs
+            mountPath: /etc/azure-npm/certs
           - name: log
             mountPath: /var/log
           - name: protocols
@@ -63,6 +65,13 @@ spec:
           - name: azure-npm-config
             mountPath: /etc/azure-npm
       volumes:
+      - name: certs
+        projected:
+          sources:
+            - secret:
+                name: npm-server-certs
+            - secret:
+                name: npm-ca-certs
       - name: log
         hostPath:
           path: /var/log

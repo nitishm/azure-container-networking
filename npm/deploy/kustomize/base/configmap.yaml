@@ -18,7 +18,7 @@ data:
             "PlaceAzureChainFirst":    false
         },
         "Transport": {
-          "Address": "azure-npm.kube-system.svc.cluster.local"
+          "Address": "azure-npm.kube-system.svc.cluster.local",
           "Port": 10092,
           "ServicePort": 9001
         }

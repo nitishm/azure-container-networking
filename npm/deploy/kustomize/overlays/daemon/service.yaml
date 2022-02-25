@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: npm-deamon-metrics-cluster-service
+  name: npm-daemon-metrics-cluster-service
   namespace: kube-system
   labels:
     app: azure-npm
@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     k8s-app: azure-npm
-    component: deamon
+    component: daemon
   ports:
   - name: metrics 
     port: 9000

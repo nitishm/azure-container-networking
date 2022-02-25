@@ -5,3 +5,10 @@ resources:
   - configmap.yaml
   - serviceaccount.yaml
   - rbac.yaml
+
+secretGenerator:
+- name: npm-ca-certs
+  options:
+    disableNameSuffixHash: true
+  files:
+  - ca.crt

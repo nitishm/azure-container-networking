@@ -5,3 +5,11 @@ bases:
 resources:
   - deployment.yaml
   - service.yaml
+
+secretGenerator:
+- name: npm-server-certs
+  options:
+    disableNameSuffixHash: true
+  files:
+  - tls.crt
+  - tls.key

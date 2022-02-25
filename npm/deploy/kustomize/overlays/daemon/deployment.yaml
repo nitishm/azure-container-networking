@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: azure-npm-deamon
+  name: azure-npm-daemon
   namespace: kube-system
   labels:
     app: azure-npm
@@ -53,15 +53,17 @@ spec:
                   fieldPath: spec.nodeName
             - name: NPM_CONFIG
               value: /etc/azure-npm/azure-npm.json
-            - name: DEAMON_POD_NAME
+            - name: DAEMON_POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: DEAMON_NODE_NAME
+            - name: DAEMON_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
           volumeMounts:
+          - name: ca-certs
+            mountPath: /etc/azure-npm/certs
           - name: log
             mountPath: /var/log
           - name: xtables-lock
@@ -73,6 +75,9 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       volumes:
+      - name: ca-certs
+        secret:
+          secretName: npm-ca-certs
       - name: log
         hostPath:
           path: /var/log
