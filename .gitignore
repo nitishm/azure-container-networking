@@ -24,3 +24,10 @@ ipam-*.xml
 controller-gen
 build/tools/bin
 npm/debug/http
+
+# certificates
+*/**/certs/
+*.crt
+*.pem
+*.pem
+*.srl

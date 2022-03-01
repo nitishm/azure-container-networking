@@ -20,6 +20,9 @@ FROM docker.io/ubuntu:focal
 COPY --from=builder /usr/local/bin/azure-npm \
 	/usr/bin/azure-npm
 
+COPY --from=builder /usr/local/src/npm/npm/scripts \
+  /usr/local/npm
+
 # Install dependencies.
 RUN apt-get update
 RUN apt-get install -y iptables
@@ -28,6 +31,9 @@ RUN apt-get install -y ca-certificates
 RUN apt-get upgrade -y
 
 RUN chmod +x /usr/bin/azure-npm
+
+WORKDIR /usr/local/npm
+RUN ./generate_certs.sh
 
 # Run the npm command by default when the container starts.
 ENTRYPOINT ["/usr/bin/azure-npm", "start"]
