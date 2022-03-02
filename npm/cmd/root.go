@@ -31,7 +31,7 @@ func NewRootCmd() *cobra.Command {
 				klog.Infof("Using config file: %+v", viper.ConfigFileUsed())
 			} else {
 				klog.Infof("Failed to load config from env %s: %v", npmconfig.ConfigEnvPath, err)
-				b, _ := json.Marshal(npmconfig.DefaultConfig)
+				b, _ := json.Marshal(npmconfig.DefaultConfig) //nolint // skip checking error
 				err := viper.ReadConfig(bytes.NewBuffer(b))
 				if err != nil {
 					return fmt.Errorf("failed to read in default with err %w", err)
