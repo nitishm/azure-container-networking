@@ -52,7 +52,6 @@ func NewEventsClient(ctx context.Context, pod, node, addr string) (*EventsClient
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial %s: %w", addr, err)
 	}
-	// defer cc.Close()
 
 	return &EventsClient{
 		ctx:                   ctx,

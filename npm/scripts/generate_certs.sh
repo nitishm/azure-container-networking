@@ -33,3 +33,6 @@ openssl req -newkey rsa:4096 -nodes -keyout $CERTS_STAGING_DIR/tls.key -out $CER
 
 # Sign the server certificate with the CA
 openssl x509 -req -in $CERTS_STAGING_DIR/server-req.pem -CA $CERTS_STAGING_DIR/ca.crt -CAkey $CERTS_STAGING_DIR/ca.key -CAcreateserial -out $CERTS_STAGING_DIR/tls.crt --days $CERTIFICATE_VALIDITY_DAYS --extfile $SAN_CNF_FILE --extensions v3_req
+
+# Remove the secret CA key and signing request
+rm -rf $CERTS_STAGING_DIR/ca.key $CERTS_STAGING_DIR/server-req.pem
