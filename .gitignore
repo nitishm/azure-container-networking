@@ -29,5 +29,4 @@ npm/debug/http
 */**/certs/
 *.crt
 *.pem
-*.pem
 *.srl

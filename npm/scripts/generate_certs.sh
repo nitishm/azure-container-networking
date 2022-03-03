@@ -8,21 +8,21 @@ CERT_SUBJ="/C=US/ST=Washington/L=Redmond/O=Microsoft/OU=Azure/CN=azure-npm.kube-
 # Check if openssl is installed
 if ! command -v openssl &> /dev/null
 then
-    echo "openssl could not be found"
-    exit
+  echo "openssl could not be found"
+  exit
 fi
 
 # Check if SAN_CNF_FILE exists
 if [ ! -f "$SAN_CNF_FILE" ]
 then
-		echo "SAN_CNF_FILE does not exist"
-		exit
+  echo "SAN_CNF_FILE does not exist"
+  exit
 fi
 
 if [ ! -d "$CERTS_STAGING_DIR" ]
 then
-    echo "Creating $CERTS_STAGING_DIR"
-		mkdir -p $CERTS_STAGING_DIR
+  echo "Creating $CERTS_STAGING_DIR"
+  mkdir -p $CERTS_STAGING_DIR
 fi
 
 # Generate the ca certificate and key
